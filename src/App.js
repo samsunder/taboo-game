@@ -453,8 +453,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
             <div className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/30">
               <div className="text-center space-y-4">
                 <div className="flex items-center justify-center gap-2 text-purple-200">
@@ -465,7 +465,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 {isDescriber ? (
                   <div className="space-y-4">
                     <p className="text-lg text-purple-200">Describe any word to your team!</p>
-                    <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-96 overflow-y-auto">
                       {gameState.words.map((wordObj, idx) => {
                         const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
                         return (
@@ -478,7 +478,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                             }`}
                           >
                             <div className="text-center">
-                              <h3 className="text-xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent">
+                              <h3 className="text-sm sm:text-xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent break-words">
                                 {wordObj.word}
                               </h3>
                               <div className="flex items-center justify-center gap-1 mt-2">
