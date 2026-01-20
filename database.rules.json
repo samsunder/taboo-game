@@ -1,9 +1,9 @@
 {
   "rules": {
     "$key": {
-      ".read": "auth != null",
+      ".read": "auth != null && $key.beginsWith('game:')",
       ".write": "auth != null && $key.beginsWith('game:')",
-      ".validate": "newData.isString()"
+      ".validate": "newData.isString() && newData.val().length <= 50000"
     }
   }
 }
