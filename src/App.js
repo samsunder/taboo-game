@@ -1,10 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, Volume2, VolumeX, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, Volume2, VolumeX, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
 // Use Firebase storage
 window.storage = firebaseStorage;
+
+// Player name validation
+const PLAYER_NAME_MAX_LENGTH = 20;
+const PLAYER_NAME_MIN_LENGTH = 2;
+
+const validatePlayerName = (name) => {
+  const trimmed = name.trim();
+
+  if (trimmed.length < PLAYER_NAME_MIN_LENGTH) {
+    return { valid: false, error: `Name must be at least ${PLAYER_NAME_MIN_LENGTH} characters` };
+  }
+
+  if (trimmed.length > PLAYER_NAME_MAX_LENGTH) {
+    return { valid: false, error: `Name must be ${PLAYER_NAME_MAX_LENGTH} characters or less` };
+  }
+
+  // Only allow alphanumeric, spaces, and basic punctuation
+  const validPattern = /^[a-zA-Z0-9\s\-_\.]+$/;
+  if (!validPattern.test(trimmed)) {
+    return { valid: false, error: 'Name can only contain letters, numbers, spaces, hyphens, underscores, and periods' };
+  }
+
+  return { valid: true, error: null };
+};
+
+const sanitizePlayerName = (name) => {
+  // Remove any HTML/script tags and trim
+  return name
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, PLAYER_NAME_MAX_LENGTH);
+};
 
 // Floating background particles component
 function FloatingParticles() {
@@ -54,6 +87,7 @@ function FloatingParticles() {
 function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [nameError, setNameError] = useState(null);
   const [settings, setSettings] = useState({
     rounds: 3,
     roundTime: 60,
@@ -61,9 +95,22 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
     teamMode: false
   });
 
+  const handleNameChange = (e) => {
+    const sanitized = sanitizePlayerName(e.target.value);
+    setPlayerName(sanitized);
+
+    if (sanitized.length > 0) {
+      const validation = validatePlayerName(sanitized);
+      setNameError(validation.error);
+    } else {
+      setNameError(null);
+    }
+  };
+
   const handleCreate = () => {
-    if (!playerName.trim()) {
-      alert('Please enter your name');
+    const validation = validatePlayerName(playerName);
+    if (!validation.valid) {
+      setNameError(validation.error);
       return;
     }
     createGame(settings);
@@ -103,13 +150,27 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
 
         {/* Main Card */}
         <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Enter your name"
+              value={playerName}
+              onChange={handleNameChange}
+              maxLength={PLAYER_NAME_MAX_LENGTH}
+              className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
+              }`}
+            />
+            {nameError && (
+              <div className="flex items-center gap-1 mt-1 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{nameError}</span>
+              </div>
+            )}
+            <div className="text-right text-xs text-slate-500 mt-1">
+              {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
+            </div>
+          </div>
 
           {showSettings && (
             <div className="space-y-4 pt-4 border-t border-slate-600">
@@ -303,6 +364,28 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, se
   const [gamePreview, setGamePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [nameError, setNameError] = useState(null);
+
+  const handleNameChange = (e) => {
+    const sanitized = sanitizePlayerName(e.target.value);
+    setPlayerName(sanitized);
+
+    if (sanitized.length > 0) {
+      const validation = validatePlayerName(sanitized);
+      setNameError(validation.error);
+    } else {
+      setNameError(null);
+    }
+  };
+
+  const handleJoin = () => {
+    const validation = validatePlayerName(playerName);
+    if (!validation.valid) {
+      setNameError(validation.error);
+      return;
+    }
+    joinGame();
+  };
 
   // Fetch game preview when gameId changes
   useEffect(() => {
@@ -354,13 +437,27 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, se
         </div>
 
         <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
-          <input
-            type="text"
-            placeholder="Your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Your name"
+              value={playerName}
+              onChange={handleNameChange}
+              maxLength={PLAYER_NAME_MAX_LENGTH}
+              className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
+              }`}
+            />
+            {nameError && (
+              <div className="flex items-center gap-1 mt-1 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{nameError}</span>
+              </div>
+            )}
+            <div className="text-right text-xs text-slate-500 mt-1">
+              {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
+            </div>
+          </div>
 
           <div className="relative">
             <input
@@ -466,8 +563,8 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, se
           )}
 
           <button
-            onClick={joinGame}
-            disabled={!gamePreview || !playerName.trim()}
+            onClick={handleJoin}
+            disabled={!gamePreview || !playerName.trim() || nameError}
             className={`w-full px-6 py-3 rounded-xl font-bold transition-all transform shadow-lg flex items-center justify-center gap-2 ${
               gamePreview && playerName.trim()
                 ? 'bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 hover:scale-105 shadow-cyan-500/20'

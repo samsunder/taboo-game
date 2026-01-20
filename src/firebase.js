@@ -1,8 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get, onValue, remove } from "firebase/database";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 
 // Game expiry in days
 const GAME_EXPIRY_DAYS = 3;
+
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 1000; // 1 second window
+const RATE_LIMIT_MAX_ACTIONS = 10; // Max 10 actions per second
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -18,10 +23,82 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const auth = getAuth(app);
+
+// Authentication state
+let currentUser = null;
+let authReady = false;
+let authReadyPromise = null;
+let authReadyResolve = null;
+
+// Create a promise that resolves when auth is ready
+authReadyPromise = new Promise((resolve) => {
+  authReadyResolve = resolve;
+});
+
+// Initialize anonymous authentication
+const initAuth = async () => {
+  return new Promise((resolve, reject) => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        authReady = true;
+        authReadyResolve();
+        console.log('Authenticated anonymously:', user.uid);
+        resolve(user);
+      } else {
+        try {
+          const result = await signInAnonymously(auth);
+          currentUser = result.user;
+          authReady = true;
+          authReadyResolve();
+          console.log('Signed in anonymously:', result.user.uid);
+          resolve(result.user);
+        } catch (error) {
+          console.error('Anonymous auth failed:', error);
+          reject(error);
+        }
+      }
+    });
+  });
+};
+
+// Start auth initialization
+initAuth().catch(console.error);
+
+// Wait for auth to be ready
+const waitForAuth = async () => {
+  if (authReady) return currentUser;
+  await authReadyPromise;
+  return currentUser;
+};
+
+// Client-side rate limiting
+const rateLimitState = {
+  actions: [],
+};
+
+const checkRateLimit = () => {
+  const now = Date.now();
+  // Remove actions outside the window
+  rateLimitState.actions = rateLimitState.actions.filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
+  );
+
+  if (rateLimitState.actions.length >= RATE_LIMIT_MAX_ACTIONS) {
+    throw new Error('Rate limit exceeded. Please slow down.');
+  }
+
+  rateLimitState.actions.push(now);
+  return true;
+};
 
 // Create a storage interface that matches the window.storage API
 export const firebaseStorage = {
   async get(key, shared) {
+    await waitForAuth();
+    checkRateLimit();
+
     const dbRef = ref(database, key);
     const snapshot = await get(dbRef);
 
@@ -32,12 +109,18 @@ export const firebaseStorage = {
   },
 
   async set(key, value, shared) {
+    await waitForAuth();
+    checkRateLimit();
+
     const dbRef = ref(database, key);
     await set(dbRef, value);
     return { key, value, shared };
   },
 
   async delete(key, shared) {
+    await waitForAuth();
+    checkRateLimit();
+
     const dbRef = ref(database, key);
     const snapshot = await get(dbRef);
     const existed = snapshot.exists();
@@ -46,8 +129,7 @@ export const firebaseStorage = {
   },
 
   async list(prefix, shared) {
-    // For simplicity, we'll return empty array
-    // In a real app, you'd query based on prefix
+    await waitForAuth();
     return { keys: [], prefix, shared };
   },
 
@@ -59,6 +141,16 @@ export const firebaseStorage = {
         callback(snapshot.val());
       }
     });
+  },
+
+  // Get current authenticated user
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  // Check if auth is ready
+  isAuthReady() {
+    return authReady;
   },
 
   // Cleanup old games
