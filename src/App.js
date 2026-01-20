@@ -1,33 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, Volume2, VolumeX, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles } from 'lucide-react';
 import { firebaseStorage } from './firebase';
+import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
 // Use Firebase storage
 window.storage = firebaseStorage;
 
-const WORD_LISTS = {
-  easy: [
-    { word: "DOG", points: 1 }, { word: "CAR", points: 1 }, { word: "BOOK", points: 1 },
-    { word: "PHONE", points: 1 }, { word: "TREE", points: 1 }, { word: "CHAIR", points: 1 },
-    { word: "WATER", points: 1 }, { word: "HOUSE", points: 1 }, { word: "DOOR", points: 1 },
-    { word: "SHOE", points: 1 }, { word: "APPLE", points: 1 }, { word: "CLOCK", points: 1 }
-  ],
-  medium: [
-    { word: "MICROSCOPE", points: 3 }, { word: "ORCHESTRA", points: 3 }, { word: "ARCHITECTURE", points: 3 },
-    { word: "PHOTOSYNTHESIS", points: 3 }, { word: "CONSTELLATION", points: 3 }, { word: "DEMOCRACY", points: 3 },
-    { word: "VELOCITY", points: 3 }, { word: "ECOSYSTEM", points: 3 }, { word: "METAPHOR", points: 3 },
-    { word: "GRAVITY", points: 3 }, { word: "RENEWABLE", points: 3 }, { word: "TELESCOPE", points: 3 }
-  ],
-  hard: [
-    { word: "CRYPTOCURRENCY", points: 5 }, { word: "PROCRASTINATION", points: 5 }, { word: "ENTREPRENEUR", points: 5 },
-    { word: "ALGORITHM", points: 5 }, { word: "SYNCHRONICITY", points: 5 }, { word: "METAMORPHOSIS", points: 5 },
-    { word: "JUXTAPOSITION", points: 5 }, { word: "SERENDIPITY", points: 5 }, { word: "ONOMATOPOEIA", points: 5 },
-    { word: "AMBIGUOUS", points: 5 }, { word: "QUINTESSENTIAL", points: 5 }, { word: "PARADIGM", points: 5 }
-  ]
-};
+// Floating background particles component
+function FloatingParticles() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Animated gradient orbs */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }} />
+      <div className="absolute top-1/2 right-1/3 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }} />
+
+      {/* Floating word hints */}
+      <div className="absolute top-[15%] left-[10%] text-slate-700/30 text-2xl font-bold animate-float" style={{ animationDuration: '8s' }}>WORD</div>
+      <div className="absolute top-[25%] right-[15%] text-slate-700/20 text-xl font-bold animate-float" style={{ animationDuration: '10s', animationDelay: '2s' }}>GUESS</div>
+      <div className="absolute bottom-[30%] left-[20%] text-slate-700/25 text-lg font-bold animate-float" style={{ animationDuration: '9s', animationDelay: '1s' }}>TABOO</div>
+      <div className="absolute bottom-[20%] right-[10%] text-slate-700/20 text-2xl font-bold animate-float" style={{ animationDuration: '7s', animationDelay: '3s' }}>PLAY</div>
+      <div className="absolute top-[60%] left-[5%] text-slate-700/15 text-xl font-bold animate-float" style={{ animationDuration: '11s', animationDelay: '4s' }}>FUN</div>
+
+      {/* CSS for float animation */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+          25% { transform: translateY(-20px) rotate(2deg); opacity: 0.5; }
+          50% { transform: translateY(-10px) rotate(-1deg); opacity: 0.4; }
+          75% { transform: translateY(-25px) rotate(1deg); opacity: 0.3; }
+        }
+        .animate-float { animation: float ease-in-out infinite; }
+
+        @keyframes logo-glow {
+          0%, 100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1); }
+          50% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.5), 0 0 60px rgba(6, 182, 212, 0.2); }
+        }
+        .animate-logo-glow { animation: logo-glow 3s ease-in-out infinite; }
+
+        @keyframes title-shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .animate-shimmer {
+          background-size: 200% auto;
+          animation: title-shimmer 4s linear infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
 
 function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [settings, setSettings] = useState({
     rounds: 3,
     roundTime: 60,
@@ -44,62 +70,83 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 relative">
+      <FloatingParticles />
+
+      <div className="max-w-md w-full space-y-6 relative z-10">
+        {/* Logo and Title */}
         <div className="text-center space-y-2">
-          <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Zap className="w-12 h-12" />
+          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-logo-glow transform hover:scale-110 transition-transform duration-300">
+            <Zap className="w-12 h-12 drop-shadow-lg" />
           </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent animate-shimmer">
             Taboo Online
           </h1>
-          <p className="text-purple-200">Multiplayer word guessing game</p>
+          <p className="text-slate-300">Multiplayer word guessing game</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 space-y-4">
+        {/* Quick Stats / Features */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-3 text-center border border-slate-700/50 hover:border-cyan-500/30 transition-colors">
+            <Users className="w-5 h-5 mx-auto mb-1 text-cyan-400" />
+            <div className="text-xs text-slate-400">2+ Players</div>
+          </div>
+          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-3 text-center border border-slate-700/50 hover:border-teal-500/30 transition-colors">
+            <Clock className="w-5 h-5 mx-auto mb-1 text-teal-400" />
+            <div className="text-xs text-slate-400">Quick Rounds</div>
+          </div>
+          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-3 text-center border border-slate-700/50 hover:border-violet-500/30 transition-colors">
+            <Trophy className="w-5 h-5 mx-auto mb-1 text-amber-400" />
+            <div className="text-xs text-slate-400">Score Points</div>
+          </div>
+        </div>
+
+        {/* Main Card */}
+        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <input
             type="text"
             placeholder="Enter your name"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
           />
 
           {showSettings && (
-            <div className="space-y-4 pt-4 border-t border-white/20">
+            <div className="space-y-4 pt-4 border-t border-slate-600">
               <div>
-                <label className="block text-sm text-purple-200 mb-2">Rounds</label>
+                <label className="block text-sm text-slate-300 mb-2">Rounds</label>
                 <input
                   type="number"
                   min="1"
                   max="10"
                   value={settings.rounds}
                   onChange={(e) => setSettings({...settings, rounds: parseInt(e.target.value)})}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                 />
               </div>
               <div>
-                <label className="block text-sm text-purple-200 mb-2">Round Time (seconds)</label>
+                <label className="block text-sm text-slate-300 mb-2">Round Time (seconds)</label>
                 <input
                   type="number"
                   min="30"
                   max="180"
                   value={settings.roundTime}
                   onChange={(e) => setSettings({...settings, roundTime: parseInt(e.target.value)})}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                 />
               </div>
               <div>
-                <label className="block text-sm text-purple-200 mb-2">Difficulty</label>
+                <label className="block text-sm text-slate-300 mb-2">Difficulty</label>
                 <select
                   value={settings.difficulty}
                   onChange={(e) => setSettings({...settings, difficulty: e.target.value})}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                 >
-                  <option value="easy">Easy (1 pt)</option>
-                  <option value="medium">Medium (3 pts)</option>
-                  <option value="hard">Hard (5 pts)</option>
-                  <option value="mixed">Mixed</option>
+                  {Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => (
+                    <option key={key} value={key}>
+                      {config.label} {config.points ? `(${config.points} pt${config.points > 1 ? 's' : ''})` : '(All)'}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="flex items-center gap-2">
@@ -108,16 +155,16 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
                   id="teamMode"
                   checked={settings.teamMode}
                   onChange={(e) => setSettings({...settings, teamMode: e.target.checked})}
-                  className="w-5 h-5"
+                  className="w-5 h-5 accent-cyan-500"
                 />
-                <label htmlFor="teamMode" className="text-purple-200">Team Mode</label>
+                <label htmlFor="teamMode" className="text-slate-300">Team Mode</label>
               </div>
             </div>
           )}
 
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/20 px-4 py-2 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-4 py-2 rounded-xl transition-colors"
           >
             <Settings className="w-4 h-4" />
             {showSettings ? 'Hide' : 'Show'} Settings
@@ -125,59 +172,315 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
 
           <button
             onClick={handleCreate}
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+            className="w-full bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-cyan-500/20"
           >
+            <Play className="w-5 h-5 inline mr-2" />
             Create Game
           </button>
 
           <button
             onClick={() => setScreen('join')}
-            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl font-bold transition-all"
+            className="w-full bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-6 py-3 rounded-xl font-bold transition-all hover:border-slate-500"
           >
             Join Game
           </button>
         </div>
+
+        {/* How to Play Button */}
+        <button
+          onClick={() => setShowHowToPlay(true)}
+          className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors py-2"
+        >
+          <BookOpen className="w-4 h-4" />
+          How to Play
+        </button>
       </div>
+
+      {/* How to Play Modal */}
+      {showHowToPlay && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowHowToPlay(false)}>
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-600 sticky top-0 bg-slate-800">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-cyan-400" />
+                How to Play
+              </h2>
+              <button onClick={() => setShowHowToPlay(false)} className="p-1 hover:bg-slate-700 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* Game Overview */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-cyan-300 flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Game Overview
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Taboo is a fast-paced word guessing game! One player describes words while others race to guess them correctly.
+                </p>
+              </div>
+
+              {/* Roles */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 rounded-xl p-4 border border-cyan-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageCircle className="w-4 h-4 text-cyan-400" />
+                    <span className="font-semibold text-cyan-300">Describer</span>
+                  </div>
+                  <p className="text-xs text-slate-300">Give clues without saying the word itself. Describe as many words as you can!</p>
+                </div>
+                <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-xl p-4 border border-violet-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-violet-400" />
+                    <span className="font-semibold text-violet-300">Guesser</span>
+                  </div>
+                  <p className="text-xs text-slate-300">Listen to clues and type your guesses. First to guess correctly gets the points!</p>
+                </div>
+              </div>
+
+              {/* Scoring */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-amber-300 flex items-center gap-2">
+                  <Trophy className="w-4 h-4" />
+                  Scoring
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 flex justify-between items-center">
+                    <span className="text-sm text-emerald-300">Easy</span>
+                    <span className="font-bold text-emerald-400">10 pts</span>
+                  </div>
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2 flex justify-between items-center">
+                    <span className="text-sm text-cyan-300">Normal</span>
+                    <span className="font-bold text-cyan-400">20 pts</span>
+                  </div>
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 flex justify-between items-center">
+                    <span className="text-sm text-amber-300">Hard</span>
+                    <span className="font-bold text-amber-400">25 pts</span>
+                  </div>
+                  <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2 flex justify-between items-center">
+                    <span className="text-sm text-rose-300">Insane</span>
+                    <span className="font-bold text-rose-400">50 pts</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-teal-300 flex items-center gap-2">
+                  <Star className="w-4 h-4" />
+                  Pro Tips
+                </h3>
+                <ul className="text-sm text-slate-300 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-teal-400">•</span>
+                    Describers can describe any word on the board in any order
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-teal-400">•</span>
+                    Use synonyms, examples, or "rhymes with" clues
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-teal-400">•</span>
+                    Type fast - first correct guess wins the points!
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-teal-400">•</span>
+                    Higher difficulty = bigger risk, bigger reward
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, setScreen }) {
+  const [gamePreview, setGamePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch game preview when gameId changes
+  useEffect(() => {
+    const fetchGamePreview = async () => {
+      if (!gameId || gameId.length < 4) {
+        setGamePreview(null);
+        setError('');
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      try {
+        const result = await window.storage.get(`game:${gameId}`, true);
+        if (result) {
+          const game = JSON.parse(result.value);
+          setGamePreview(game);
+          setError('');
+        } else {
+          setGamePreview(null);
+          setError('Game not found');
+        }
+      } catch (err) {
+        setGamePreview(null);
+        setError('Game not found');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchGamePreview, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [gameId]);
+
+  const hostPlayer = gamePreview?.players?.find(p => p.id === gamePreview.host);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 relative">
+      <FloatingParticles />
+
+      <div className="max-w-md w-full space-y-6 relative z-10">
         <div className="text-center">
-          <h2 className="text-4xl font-bold mb-2">Join Game</h2>
-          <p className="text-purple-200">Enter game code to join</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-logo-glow">
+            <Users className="w-10 h-10" />
+          </div>
+          <h2 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Join Game</h2>
+          <p className="text-slate-300">Enter game code to join</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 space-y-4">
+        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <input
             type="text"
             placeholder="Your name"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
 
-          <input
-            type="text"
-            placeholder="Game Code"
-            value={gameId}
-            onChange={(e) => setGameId(e.target.value.toUpperCase())}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-pink-500 uppercase"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Game Code"
+              value={gameId}
+              onChange={(e) => setGameId(e.target.value.toUpperCase())}
+              className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 uppercase transition-colors ${
+                error ? 'border-red-500/50 focus:ring-red-500' :
+                gamePreview ? 'border-emerald-500/50 focus:ring-emerald-500' :
+                'border-slate-600 focus:ring-cyan-500'
+              }`}
+            />
+            {loading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            {!loading && gamePreview && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {/* Game Preview Card */}
+          {gamePreview && (
+            <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-xl p-4 border border-slate-600/50 space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm text-slate-300">Host:</span>
+                  <span className="font-semibold text-white">{hostPlayer?.name || 'Unknown'}</span>
+                </div>
+                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  gamePreview.status === 'lobby' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                  gamePreview.status === 'playing' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                  'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+                }`}>
+                  {gamePreview.status === 'lobby' ? 'Waiting' :
+                   gamePreview.status === 'playing' ? 'In Progress' : 'Finished'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-cyan-400" />
+                  <span className="text-slate-400">Players:</span>
+                  <span className="font-medium text-white">{gamePreview.players?.length || 0}</span>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-teal-400" />
+                  <span className="text-slate-400">Rounds:</span>
+                  <span className="font-medium text-white">{gamePreview.settings?.rounds || 3}</span>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-violet-400" />
+                  <span className="text-slate-400">Time:</span>
+                  <span className="font-medium text-white">{gamePreview.settings?.roundTime || 60}s</span>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span className="text-slate-400">Mode:</span>
+                  <span className="font-medium text-white capitalize">{gamePreview.settings?.difficulty || 'mixed'}</span>
+                </div>
+              </div>
+
+              {/* Player list preview */}
+              {gamePreview.players?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {gamePreview.players.slice(0, 6).map((player, idx) => (
+                    <span key={idx} className="bg-slate-700/50 px-2 py-1 rounded-md text-xs text-slate-300 flex items-center gap-1">
+                      {player.id === gamePreview.host && <Crown className="w-3 h-3 text-amber-400" />}
+                      {player.name}
+                    </span>
+                  ))}
+                  {gamePreview.players.length > 6 && (
+                    <span className="bg-slate-700/50 px-2 py-1 rounded-md text-xs text-slate-400">
+                      +{gamePreview.players.length - 6} more
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <style>{`
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(-10px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+              `}</style>
+            </div>
+          )}
+
+          {/* Error message */}
+          {error && gameId.length >= 4 && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm flex items-center gap-2">
+              <X className="w-4 h-4" />
+              {error}
+            </div>
+          )}
 
           <button
             onClick={joinGame}
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+            disabled={!gamePreview || !playerName.trim()}
+            className={`w-full px-6 py-3 rounded-xl font-bold transition-all transform shadow-lg flex items-center justify-center gap-2 ${
+              gamePreview && playerName.trim()
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 hover:scale-105 shadow-cyan-500/20'
+                : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+            }`}
           >
-            Join Game
+            <Play className="w-5 h-5" />
+            {gamePreview?.status === 'playing' ? 'Join In Progress' : 'Join Game'}
           </button>
 
           <button
             onClick={() => setScreen('home')}
-            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl font-bold transition-all"
+            className="w-full bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-6 py-3 rounded-xl font-bold transition-all hover:border-slate-500"
           >
             Back
           </button>
@@ -194,12 +497,12 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
   const team2 = gameState.players.filter(p => p.team === 2);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
       <div className="max-w-4xl mx-auto space-y-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-4xl font-bold">Game Lobby</h2>
-            <p className="text-purple-200 mt-1">Waiting for players...</p>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Game Lobby</h2>
+            <p className="text-slate-300 mt-1">Waiting for players...</p>
           </div>
           <button
             onClick={leaveGame}
@@ -210,12 +513,12 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
           </button>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xl font-bold">Game Code: {gameId}</span>
+            <span className="text-xl font-bold text-cyan-300">Game Code: {gameId}</span>
             <button
               onClick={copyGameLink}
-              className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-xl transition-colors"
+              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-xl transition-colors"
             >
               <Copy className="w-4 h-4" />
               Copy Link
@@ -224,12 +527,12 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
 
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <h3 className="text-sm text-purple-200 mb-2">Settings</h3>
+              <h3 className="text-sm text-slate-400 mb-2">Settings</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-white/5 px-3 py-2 rounded-lg">Rounds: {gameState.settings.rounds}</div>
-                <div className="bg-white/5 px-3 py-2 rounded-lg">Time: {gameState.settings.roundTime}s</div>
-                <div className="bg-white/5 px-3 py-2 rounded-lg">Difficulty: {gameState.settings.difficulty}</div>
-                <div className="bg-white/5 px-3 py-2 rounded-lg">Mode: {gameState.settings.teamMode ? 'Teams' : 'FFA'}</div>
+                <div className="bg-slate-700/50 px-3 py-2 rounded-lg">Rounds: {gameState.settings.rounds}</div>
+                <div className="bg-slate-700/50 px-3 py-2 rounded-lg">Time: {gameState.settings.roundTime}s</div>
+                <div className="bg-slate-700/50 px-3 py-2 rounded-lg">Difficulty: {gameState.settings.difficulty}</div>
+                <div className="bg-slate-700/50 px-3 py-2 rounded-lg">Mode: {gameState.settings.teamMode ? 'Teams' : 'FFA'}</div>
               </div>
             </div>
           </div>
@@ -237,29 +540,29 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
 
         {gameState.settings.teamMode ? (
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-500/20 backdrop-blur-md rounded-2xl p-6 border border-blue-500/30">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="bg-cyan-500/20 backdrop-blur-md rounded-2xl p-6 border border-cyan-500/30">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
                 <Users className="w-5 h-5" />
                 Team 1
               </h3>
               <div className="space-y-2">
                 {team1.map(player => (
-                  <div key={player.id} className="bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2">
-                    {player.id === gameState.host && <Crown className="w-4 h-4 text-yellow-400" />}
+                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                     {player.name}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="bg-red-500/20 backdrop-blur-md rounded-2xl p-6 border border-red-500/30">
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="bg-rose-500/20 backdrop-blur-md rounded-2xl p-6 border border-rose-500/30">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-rose-300">
                 <Users className="w-5 h-5" />
                 Team 2
               </h3>
               <div className="space-y-2">
                 {team2.map(player => (
-                  <div key={player.id} className="bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2">
-                    {player.id === gameState.host && <Crown className="w-4 h-4 text-yellow-400" />}
+                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                     {player.name}
                   </div>
                 ))}
@@ -267,15 +570,15 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
             </div>
           </div>
         ) : (
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
               <Users className="w-5 h-5" />
               Players ({gameState.players.length})
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {gameState.players.map(player => (
-                <div key={player.id} className="bg-white/10 px-4 py-2 rounded-lg flex items-center gap-2">
-                  {player.id === gameState.host && <Crown className="w-4 h-4 text-yellow-400" />}
+                <div key={player.id} className="bg-slate-700/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                  {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                   {player.name}
                 </div>
               ))}
@@ -286,7 +589,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
         {isHost && gameState.players.length >= 2 && (
           <button
             onClick={startGame}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
           >
             <Play className="w-6 h-6" />
             Start Game
@@ -294,13 +597,13 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
         )}
 
         {isHost && gameState.players.length < 2 && (
-          <div className="text-center text-purple-200">
+          <div className="text-center text-slate-400">
             Waiting for at least 2 players to start...
           </div>
         )}
 
         {!isHost && (
-          <div className="text-center text-purple-200">
+          <div className="text-center text-slate-400">
             Waiting for host to start the game...
           </div>
         )}
@@ -309,13 +612,194 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, leaveGame, logoutPlayer, restartGame }) {
+function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showPlayers, setShowPlayers] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+
+  const currentPlayer = gameState?.players?.find(p => p.id === playerId);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isOpen && !e.target.closest('.game-menu-container')) {
+        setIsOpen(false);
+        setShowPlayers(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="game-menu-container relative">
+      {/* Menu Button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); setShowPlayers(false); }}
+        className="flex items-center gap-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 px-4 py-2 rounded-xl transition-colors"
+      >
+        <Menu className="w-5 h-5" />
+        <span className="hidden sm:inline">Menu</span>
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden">
+          {/* Player Info Header */}
+          <div className="px-4 py-3 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border-b border-slate-600">
+            <div className="flex items-center gap-2">
+              {isHost && <Crown className="w-4 h-4 text-amber-400" />}
+              <span className="font-semibold">{currentPlayer?.name}</span>
+            </div>
+            <div className="text-xs text-slate-400 mt-1">
+              Score: <span className="text-amber-400 font-bold">{currentPlayer?.score || 0}</span>
+            </div>
+          </div>
+
+          {/* Players Submenu */}
+          <div className="border-b border-slate-700">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowPlayers(!showPlayers); }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-cyan-400" />
+                <span>Players ({gameState?.players?.length || 0})</span>
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform ${showPlayers ? 'rotate-90' : ''}`} />
+            </button>
+
+            {showPlayers && (
+              <div className="bg-slate-900/50 max-h-48 overflow-y-auto">
+                {gameState?.players?.map(player => (
+                  <div
+                    key={player.id}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-slate-700/30"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400" />}
+                      <span className={`text-sm ${player.connected === false ? 'text-slate-500' : ''}`}>
+                        {player.name}
+                        {player.id === playerId && ' (You)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-amber-400">{player.score}pts</span>
+                      {player.id === gameState.currentDescriber && (
+                        <Mic className="w-3 h-3 text-cyan-400" title="Current describer" />
+                      )}
+                      {isHost && player.id !== playerId && player.id !== gameState.currentDescriber && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); promoteDescriber(player.id); }}
+                          className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                          title="Make describer"
+                        >
+                          <Mic className="w-3 h-3 text-cyan-400" />
+                        </button>
+                      )}
+                      {isHost && player.id !== playerId && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); kickPlayer(player.id); }}
+                          className="p-1 hover:bg-red-500/30 rounded transition-colors"
+                          title="Kick player"
+                        >
+                          <UserX className="w-3 h-3 text-red-400" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Copy Game Link */}
+          <button
+            onClick={(e) => { e.stopPropagation(); copyGameLink(); }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/50 transition-colors border-b border-slate-700"
+          >
+            <Link className="w-4 h-4 text-cyan-400" />
+            <span>Copy Game Link</span>
+          </button>
+
+          {/* Game Rules */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowRules(true); setIsOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/50 transition-colors border-b border-slate-700"
+          >
+            <BookOpen className="w-4 h-4 text-teal-400" />
+            <span>Game Rules</span>
+          </button>
+
+          {/* Logout */}
+          <button
+            onClick={(e) => { e.stopPropagation(); logoutPlayer(); }}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/20 transition-colors text-red-400"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Leave Game</span>
+          </button>
+        </div>
+      )}
+
+      {/* Rules Modal */}
+      {showRules && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowRules(false)}>
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-600">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-teal-400" />
+                Game Rules
+              </h2>
+              <button onClick={() => setShowRules(false)} className="p-1 hover:bg-slate-700 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4 text-slate-300">
+              <div>
+                <h3 className="font-semibold text-white mb-1">Objective</h3>
+                <p className="text-sm">Guess as many words as possible based on the describer's clues.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-1">Describer's Role</h3>
+                <p className="text-sm">Describe any word on the board without saying the word itself. You can describe multiple words in any order.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-1">Guesser's Role</h3>
+                <p className="text-sm">Type your guesses in the input box. Points go to the first player to guess correctly.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-1">Scoring</h3>
+                <ul className="text-sm list-disc list-inside space-y-1">
+                  <li>Easy words: 1 point</li>
+                  <li>Normal words: 2 points</li>
+                  <li>Hard words: 3 points</li>
+                  <li>Insane words: 5 points</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-1">Winning</h3>
+                <p className="text-sm">The player with the most points at the end of all rounds wins!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen gameState={gameState} isHost={isHost} leaveGame={leaveGame} restartGame={restartGame} />;
   }
 
   const player = gameState.players.find(p => p.id === playerId);
   const describer = gameState.players.find(p => p.id === gameState.currentDescriber);
+  const isDescriberOffline = describer && describer.connected === false;
+  const onlinePlayers = gameState.players.filter(p => p.connected !== false);
+  const availableDescribers = onlinePlayers.filter(p => p.id !== gameState.currentDescriber);
 
   // Check if we're in break period
   const isBreak = gameState.breakEndTime && !gameState.roundStartTime;
@@ -335,240 +819,374 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
     });
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full space-y-6">
-          <div className="text-center space-y-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto">
-              <Timer className="w-12 h-12 animate-pulse" />
-            </div>
-            <h1 className="text-5xl font-bold">Round Complete!</h1>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
+        <div className="max-w-4xl mx-auto space-y-5 py-6">
 
-            {/* Scoreboard */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
-                <Trophy className="w-6 h-6 text-yellow-400" />
-                Current Standings
-              </h2>
-              <div className="space-y-2">
-                {[...gameState.players].sort((a, b) => b.score - a.score).map((p, idx) => (
-                  <div
-                    key={p.id}
-                    className={`flex items-center justify-between px-4 py-3 rounded-lg ${
-                      idx === 0 ? 'bg-yellow-500/20 border border-yellow-500/50' :
-                      idx === 1 ? 'bg-gray-400/20 border border-gray-400/50' :
-                      idx === 2 ? 'bg-orange-700/20 border border-orange-700/50' :
-                      'bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-purple-300">#{idx + 1}</span>
-                      <span className="font-semibold">{p.name}</span>
-                    </div>
-                    <span className="text-xl font-bold text-yellow-400">{p.score}</span>
+          {/* Header - Round Complete */}
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
+              {gameState.isLastRoundBreak ? 'Final Round Complete!' : `Round ${gameState.currentRound} Complete!`}
+            </h1>
+            {gameState.isLastRoundBreak && (
+              <p className="text-slate-300 mt-2">Results coming up...</p>
+            )}
+          </div>
+
+          {/* Next Round Card - Primary Action at Top (only show if not last round) */}
+          {!gameState.isLastRoundBreak ? (
+            <div className="bg-gradient-to-br from-violet-500/10 to-purple-600/10 backdrop-blur-md rounded-2xl p-5 border border-violet-500/30">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Left side - Timer and Describer Info */}
+                <div className="flex items-center gap-4">
+                  <div className={`w-16 h-16 ${isDescriberOffline ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-cyan-500 to-teal-600'} rounded-xl flex items-center justify-center shrink-0`}>
+                    <span className="text-2xl font-bold">{breakTimeRemaining}s</span>
                   </div>
-                ))}
+                  <div className="text-center sm:text-left">
+                    <p className="text-sm text-slate-400">Round {gameState.currentRound + 1} starts in</p>
+                    <p className="text-lg">
+                      <span className="text-slate-400">Next up: </span>
+                      <span className={`font-bold ${isDescriberOffline ? 'text-red-400' : 'text-cyan-300'}`}>{describer?.name}</span>
+                      {isDescriber && <span className="text-xs ml-2 text-amber-400">(You)</span>}
+                      {isDescriberOffline && <span className="text-xs ml-2 text-red-400">(Offline)</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right side - Action Buttons */}
+                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                  {isDescriber && breakTimeRemaining <= 0 && gameState.players.length >= 2 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={startNextRound}
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-5 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-5 h-5" />
+                        Start Round
+                      </button>
+                      <button
+                        onClick={skipTurn}
+                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                        title="Skip your turn"
+                      >
+                        <SkipForward className="w-5 h-5" />
+                        <span className="hidden sm:inline">Skip</span>
+                      </button>
+                    </div>
+                  )}
+                  {gameState.players.length < 2 && (
+                    <div className="text-amber-400 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-xl text-sm">
+                      Need 2+ players to continue
+                    </div>
+                  )}
+                  {/* Describer offline - Host controls */}
+                  {isDescriberOffline && !isDescriber && gameState.players.length >= 2 && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                      <p className="text-red-400 text-sm mb-2">
+                        <span className="font-semibold">{describer?.name}</span> appears to be offline.
+                      </p>
+                      {isHost && availableDescribers.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-xs text-slate-400 w-full">Assign new describer:</span>
+                          {availableDescribers.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => promoteDescriber(p.id)}
+                              className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
+                            >
+                              <Mic className="w-3 h-3" />
+                              {p.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : isHost && availableDescribers.length === 0 ? (
+                        <p className="text-amber-400 text-xs">
+                          No other online players available. Waiting for players to reconnect...
+                        </p>
+                      ) : (
+                        <p className="text-slate-400 text-xs">
+                          Waiting for host to assign a new describer...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {/* Normal waiting state */}
+                  {!isDescriberOffline && (!isDescriber || breakTimeRemaining > 0) && gameState.players.length >= 2 && (
+                    <div className="text-slate-400 text-sm px-4 py-2">
+                      {isDescriber ? 'Get ready to describe!' : `Waiting for ${describer?.name}...`}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          ) : (
+            <div className="bg-gradient-to-br from-amber-500/10 to-orange-600/10 backdrop-blur-md rounded-2xl p-5 border border-amber-500/30">
+              <div className="flex items-center justify-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shrink-0">
+                  <Trophy className="w-8 h-8" />
+                </div>
+                <div className="text-center sm:text-left">
+                  <p className="text-lg font-bold text-amber-300">Game Over!</p>
+                  <p className="text-sm text-slate-400">Showing results in {breakTimeRemaining}s...</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-            {/* Round Summary - All Submissions */}
-            {(gameState.submissions || []).length > 0 && (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <h2 className="text-2xl font-bold mb-4">Round Summary</h2>
-                <div className="space-y-4">
-                  {Object.values(submissionsByPlayer).map((playerData, idx) => (
-                    <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                      <h3 className="text-lg font-bold mb-3 text-purple-200">{playerData.playerName}</h3>
+          {/* Words This Round - Primary Focus */}
+          <div className="bg-gradient-to-br from-cyan-500/10 to-teal-600/10 backdrop-blur-md rounded-2xl p-5 border border-cyan-500/30">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Zap className="w-6 h-6 text-cyan-400" />
+              Words This Round
+              <span className="text-sm font-normal text-slate-300 ml-auto bg-slate-800/50 px-3 py-1 rounded-full">
+                {gameState.guesses.length}/{gameState.words.length} guessed
+              </span>
+            </h2>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {gameState.words.map((wordObj, idx) => {
+                const guessInfo = gameState.guesses.find(g => g.word === wordObj.word);
+                const wasGuessed = !!guessInfo;
+                return (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-xl text-center transition-all ${
+                      wasGuessed
+                        ? 'bg-emerald-500/30 border-2 border-emerald-400/70 shadow-lg shadow-emerald-500/20'
+                        : 'bg-slate-800/60 border border-slate-600/50'
+                    }`}
+                  >
+                    <div
+                      className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'}`}
+                      title={wordObj.word}
+                    >
+                      {wordObj.word}
+                    </div>
+                    <div className={`text-xs mt-1 ${wasGuessed ? 'text-emerald-300' : 'text-amber-400'}`}>
+                      {wasGuessed ? `✓ ${guessInfo.playerName}` : `${wordObj.points}pt`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Player Submissions */}
+          {(gameState.submissions || []).length > 0 && (
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md rounded-2xl p-5 border border-slate-500/30">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Users className="w-6 h-6 text-teal-400" />
+                Player Submissions
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.values(submissionsByPlayer).map((playerData, idx) => {
+                  const totalPoints = playerData.submissions.reduce((sum, s) => sum + (s.isCorrect ? s.points : 0), 0);
+                  return (
+                    <div key={idx} className="bg-slate-800/60 rounded-xl p-4 border border-slate-600/40">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-cyan-300">{playerData.playerName}</h3>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-full">
+                          +{totalPoints} pts
+                        </span>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {playerData.submissions.map((sub, subIdx) => (
                           <div
                             key={subIdx}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                            className={`px-2.5 py-1.5 rounded-lg text-sm font-medium ${
                               sub.isCorrect
-                                ? 'bg-green-500/30 border-2 border-green-400 text-green-200'
-                                : 'bg-red-500/20 border border-red-400/40 text-red-300/70'
+                                ? 'bg-emerald-500/30 border border-emerald-400/60 text-emerald-100'
+                                : 'bg-red-500/20 border border-red-400/40 text-red-300/80 line-through'
                             }`}
                           >
                             {sub.word}
-                            {sub.isCorrect && (
-                              <span className="ml-1 text-yellow-300">+{sub.points}</span>
-                            )}
                           </div>
                         ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 space-y-4">
-              <p className="text-2xl text-purple-200">Next Round Starts In</p>
-              <div className="text-6xl font-bold text-yellow-400">{breakTimeRemaining}s</div>
-              <div className="pt-4 border-t border-white/20">
-                <p className="text-xl text-purple-200 mb-2">Next Describer:</p>
-                <p className="text-3xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent">
-                  {describer?.name}
-                </p>
-              </div>
-              {isDescriber && breakTimeRemaining <= 0 && (
-                <button
-                  onClick={startNextRound}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+          {/* Standings - Compact at Bottom */}
+          <div className="bg-slate-800/30 backdrop-blur-md rounded-xl p-4 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-semibold text-slate-300">Current Standings</h2>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {[...gameState.players].sort((a, b) => b.score - a.score).map((p, idx) => (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                    idx === 0 ? 'bg-amber-500/20 border border-amber-500/40' :
+                    'bg-slate-700/40 border border-slate-600/40'
+                  }`}
                 >
-                  <Play className="w-6 h-6" />
-                  Start Round {gameState.currentRound + 1}
-                </button>
-              )}
-              {(!isDescriber || breakTimeRemaining > 0) && (
-                <div className="text-purple-200">
-                  {isDescriber ? 'Get ready to describe!' : `Waiting for ${describer?.name} to start...`}
+                  <span className="text-xs font-bold text-slate-400">#{idx + 1}</span>
+                  <span className="text-sm font-medium">{p.name}</span>
+                  <span className="text-sm font-bold text-amber-400">{p.score}</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
+
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white p-4">
-      <div className="max-w-6xl mx-auto space-y-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
+      <div className="max-w-6xl mx-auto space-y-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl ${timeRemaining <= 10 ? 'bg-red-500/20 border border-red-500/50' : ''}`}>
-              <Timer className={`w-5 h-5 ${timeRemaining <= 10 ? 'animate-pulse' : ''}`} />
-              <span className="text-2xl font-bold">{timeRemaining}s</span>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-2 bg-slate-800/50 px-4 py-2 rounded-xl border ${timeRemaining <= 10 ? 'bg-red-500/20 border-red-500/50' : 'border-slate-700'}`}>
+              <Timer className={`w-5 h-5 ${timeRemaining <= 10 ? 'text-red-400 animate-pulse' : 'text-cyan-400'}`} />
+              <span className={`text-2xl font-bold ${timeRemaining <= 10 ? 'text-red-400' : 'text-white'}`}>{timeRemaining}s</span>
             </div>
-            <div className="bg-white/10 px-4 py-2 rounded-xl">
+            <div className="bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
               Round {gameState.currentRound}/{gameState.settings.rounds}
             </div>
+            <div className="bg-gradient-to-r from-amber-500/20 to-orange-600/20 px-4 py-2 rounded-xl border border-amber-500/30">
+              <span className="text-slate-300 text-sm mr-2">Score:</span>
+              <span className="text-xl font-bold text-amber-400">{player?.score || 0}</span>
+            </div>
           </div>
-          <button
-            onClick={logoutPlayer}
-            className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 px-4 py-2 rounded-xl transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
+          <GameMenu
+            gameState={gameState}
+            playerId={playerId}
+            isHost={isHost}
+            logoutPlayer={logoutPlayer}
+            copyGameLink={copyGameLink}
+            kickPlayer={kickPlayer}
+            promoteDescriber={promoteDescriber}
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/30">
-              <div className="text-center space-y-4">
-                <div className="flex items-center justify-center gap-2 text-purple-200">
-                  <Crown className="w-5 h-5" />
-                  <span>Describer: {describer?.name}</span>
-                </div>
-                
-                {isDescriber ? (
-                  <div className="space-y-4">
-                    <p className="text-lg text-purple-200">Describe any word to your team!</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-96 overflow-y-auto">
-                      {gameState.words.map((wordObj, idx) => {
-                        const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
-                        return (
-                          <div
-                            key={idx}
-                            className={`p-4 rounded-xl border-2 transition-all ${
-                              isGuessed
-                                ? 'bg-green-500/20 border-green-500/50 opacity-50'
-                                : 'bg-white/10 border-white/20 hover:border-pink-500/50'
-                            }`}
-                          >
-                            <div className="text-center">
-                              <h3 className="text-sm sm:text-xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent break-words">
-                                {wordObj.word}
-                              </h3>
-                              <div className="flex items-center justify-center gap-1 mt-2">
-                                <Star className="w-4 h-4 text-yellow-400" />
-                                <span className="text-sm font-bold text-yellow-400">{wordObj.points}pt</span>
-                              </div>
-                              {isGuessed && (
-                                <div className="text-xs text-green-300 mt-1">✓ Guessed</div>
-                              )}
+        <div className="space-y-4">
+          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-md rounded-2xl p-6 border border-cyan-500/20">
+            <div className="text-center space-y-4">
+              <div className="flex items-center justify-center gap-2 text-cyan-300">
+                <Crown className="w-5 h-5 text-amber-400" />
+                <span>Describer: {describer?.name}</span>
+              </div>
+
+              {isDescriber ? (
+                <div className="space-y-4">
+                  <p className="text-lg text-cyan-200">Describe any word to your team!</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {gameState.words.map((wordObj, idx) => {
+                      const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
+                      const pointColors = {
+                        1: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/40 hover:border-emerald-400',
+                        2: 'from-cyan-500/20 to-blue-600/20 border-cyan-500/40 hover:border-cyan-400',
+                        3: 'from-amber-500/20 to-orange-600/20 border-amber-500/40 hover:border-amber-400',
+                        4: 'from-rose-500/20 to-pink-600/20 border-rose-500/40 hover:border-rose-400',
+                        5: 'from-violet-500/20 to-purple-600/20 border-violet-500/40 hover:border-violet-400'
+                      };
+                      const textColors = {
+                        1: 'text-emerald-300',
+                        2: 'text-cyan-300',
+                        3: 'text-amber-300',
+                        4: 'text-rose-300',
+                        5: 'text-violet-300'
+                      };
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${
+                            isGuessed
+                              ? 'bg-slate-800/50 border-slate-600/50 opacity-40'
+                              : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[3]}`
+                          }`}
+                        >
+                          <div className="text-center">
+                            <h3 className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${
+                              isGuessed ? 'text-slate-400 line-through' : (textColors[wordObj.points] || 'text-white')
+                            }`} title={wordObj.word}>
+                              {wordObj.word}
+                            </h3>
+                            <div className="flex items-center justify-center gap-1 mt-1">
+                              <Star className={`w-3 h-3 ${isGuessed ? 'text-slate-500' : 'text-amber-400'}`} />
+                              <span className={`text-xs font-bold ${isGuessed ? 'text-slate-500' : 'text-amber-300'}`}>
+                                {wordObj.points}pt
+                              </span>
                             </div>
+                            {isGuessed && (
+                              <div className="text-xs text-emerald-400 font-semibold">✓</div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-lg text-purple-200">Listen and guess any word!</p>
-                    <div className="text-center">
-                      <div className="text-sm text-purple-300 mb-2">Words Remaining</div>
-                      <div className="text-3xl font-bold text-yellow-400">
-                        {gameState.words.length - gameState.guesses.length}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {!isDescriber && (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <form onSubmit={(e) => { e.preventDefault(); submitGuess(); }} className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="Type your guess..."
-                    value={guessInput}
-                    onChange={(e) => setGuessInput(e.target.value)}
-                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-6 py-3 rounded-xl font-bold transition-all"
-                  >
-                    Submit
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {(gameState.submissions || []).length > 0 && (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-400" />
-                  Submitted Words This Round
-                </h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {(gameState.submissions || []).slice().reverse().map((submission, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex items-center justify-between px-4 py-2 rounded-lg border ${
-                        submission.isCorrect
-                          ? 'bg-green-500/20 border-green-500/30'
-                          : 'bg-red-500/10 border-red-500/20'
-                      }`}
-                    >
-                      <span className="font-semibold">{submission.playerName}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={submission.isCorrect ? 'text-green-300' : 'text-red-300/60'}>
-                          {submission.word}
-                        </span>
-                        {submission.isCorrect && (
-                          <span className="text-yellow-400 text-sm">+{submission.points}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-              <div className="text-center">
-                <div className="text-sm text-purple-200 mb-1">Your Score</div>
-                <div className="text-3xl font-bold text-yellow-400">{player?.score || 0}</div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-lg text-slate-300">Listen and guess any word!</p>
+                  <div className="text-center">
+                    <div className="text-sm text-slate-400 mb-2">Words Remaining</div>
+                    <div className="text-3xl font-bold text-cyan-400">
+                      {gameState.words.length - gameState.guesses.length}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {!isDescriber && (
+            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+              <form onSubmit={(e) => { e.preventDefault(); submitGuess(); }} className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Type your guess..."
+                  value={guessInput}
+                  onChange={(e) => setGuessInput(e.target.value)}
+                  className="flex-1 bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all"
+                >
+                  Submit
+                </button>
+              </form>
+            </div>
+          )}
+
+          {(gameState.submissions || []).length > 0 && (
+            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                Submitted Words This Round
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {(gameState.submissions || []).slice().reverse().map((submission, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center justify-between px-4 py-2 rounded-lg border ${
+                      submission.isCorrect
+                        ? 'bg-emerald-500/20 border-emerald-500/30'
+                        : 'bg-red-500/10 border-red-500/20'
+                    }`}
+                  >
+                    <span className="font-semibold">{submission.playerName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={submission.isCorrect ? 'text-emerald-300' : 'text-red-300/60'}>
+                        {submission.word}
+                      </span>
+                      {submission.isCorrect && (
+                        <span className="text-amber-400 text-sm">+{submission.points}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -585,34 +1203,34 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
   const winner = sortedPlayers[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4">
       <div className="max-w-2xl w-full space-y-8">
         <div className="text-center space-y-4">
-          <Trophy className="w-24 h-24 text-yellow-400 mx-auto" />
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+          <Trophy className="w-24 h-24 text-amber-400 mx-auto" />
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             Game Over!
           </h1>
-          <p className="text-3xl text-purple-200">{winner.name} wins!</p>
+          <p className="text-3xl text-cyan-300">{winner.name} wins!</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-8 border border-amber-500/20">
           <h2 className="text-2xl font-bold mb-6 text-center">Final Scores</h2>
           <div className="space-y-3">
             {sortedPlayers.map((player, idx) => (
-              <div 
+              <div
                 key={player.id}
                 className={`flex items-center justify-between px-6 py-4 rounded-xl ${
-                  idx === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/50' :
-                  idx === 1 ? 'bg-gray-400/20 border border-gray-400/50' :
+                  idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50' :
+                  idx === 1 ? 'bg-slate-400/20 border border-slate-400/50' :
                   idx === 2 ? 'bg-orange-700/20 border border-orange-700/50' :
-                  'bg-white/5 border border-white/10'
+                  'bg-slate-800/30 border border-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <span className="text-3xl font-bold">#{idx + 1}</span>
                   <span className="text-xl font-semibold">{player.name}</span>
                 </div>
-                <span className="text-3xl font-bold text-yellow-400">{player.score}</span>
+                <span className="text-3xl font-bold text-amber-400">{player.score}</span>
               </div>
             ))}
           </div>
@@ -621,41 +1239,42 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
         {isHost ? (
           <div className="space-y-4">
             {showSettings && (
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 space-y-4">
+              <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
                 <h3 className="text-xl font-bold mb-2">Game Settings</h3>
                 <div>
-                  <label className="block text-sm text-purple-200 mb-2">Rounds</label>
+                  <label className="block text-sm text-slate-300 mb-2">Rounds</label>
                   <input
                     type="number"
                     min="1"
                     max="10"
                     value={newSettings.rounds}
                     onChange={(e) => setNewSettings({...newSettings, rounds: parseInt(e.target.value)})}
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-purple-200 mb-2">Round Time (seconds)</label>
+                  <label className="block text-sm text-slate-300 mb-2">Round Time (seconds)</label>
                   <input
                     type="number"
                     min="30"
                     max="180"
                     value={newSettings.roundTime}
                     onChange={(e) => setNewSettings({...newSettings, roundTime: parseInt(e.target.value)})}
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-purple-200 mb-2">Difficulty</label>
+                  <label className="block text-sm text-slate-300 mb-2">Difficulty</label>
                   <select
                     value={newSettings.difficulty}
                     onChange={(e) => setNewSettings({...newSettings, difficulty: e.target.value})}
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                   >
-                    <option value="easy">Easy (1 pt)</option>
-                    <option value="medium">Medium (3 pts)</option>
-                    <option value="hard">Hard (5 pts)</option>
-                    <option value="mixed">Mixed</option>
+                    {Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => (
+                      <option key={key} value={key}>
+                        {config.label} {config.points ? `(${config.points} pt${config.points > 1 ? 's' : ''})` : '(All)'}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -663,7 +1282,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
 
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl font-bold transition-all"
+              className="w-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 px-6 py-3 rounded-xl font-bold transition-all"
             >
               <Settings className="w-5 h-5 inline mr-2" />
               {showSettings ? 'Hide Settings' : 'Change Settings'}
@@ -671,7 +1290,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
 
             <button
               onClick={() => restartGame(newSettings)}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
             >
               <Play className="w-6 h-6" />
               Restart Game
@@ -679,7 +1298,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
 
             <button
               onClick={leaveGame}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105"
             >
               Back to Home
             </button>
@@ -687,7 +1306,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
         ) : (
           <button
             onClick={leaveGame}
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105"
           >
             Back to Home
           </button>
@@ -722,7 +1341,38 @@ export default function App() {
     const gameParam = urlParams.get('game');
     if (gameParam) {
       setGameId(gameParam);
-      setScreen('join');
+
+      // Check if player is already in the game (refreshed mid-game)
+      if (savedPlayerId) {
+        window.storage.get(`game:${gameParam}`, true).then(result => {
+          if (result) {
+            const game = JSON.parse(result.value);
+            const existingPlayer = game.players.find(p => p.id === savedPlayerId);
+
+            if (existingPlayer) {
+              // Player is already in the game - rejoin directly
+              console.log('Player refreshed - rejoining game directly');
+              setPlayerName(existingPlayer.name);
+              setGameState(game);
+
+              if (game.status === 'playing') {
+                setScreen('game');
+              } else if (game.status === 'finished') {
+                setScreen('game');
+              } else {
+                setScreen('lobby');
+              }
+              return;
+            }
+          }
+          // Player not in game - show join screen
+          setScreen('join');
+        }).catch(() => {
+          setScreen('join');
+        });
+      } else {
+        setScreen('join');
+      }
     }
   }, []);
 
@@ -736,6 +1386,23 @@ export default function App() {
         if (data) {
           const newState = JSON.parse(data);
           console.log('Real-time update:', newState.players.length, 'players', newState.players.map(p => p.name), 'status:', newState.status);
+
+          // Check if current player was kicked
+          const currentPlayerId = window.localStorage.getItem('taboo_player_id');
+          const playerStillInGame = newState.players.some(p => p.id === currentPlayerId);
+
+          if (!playerStillInGame && currentPlayerId) {
+            console.log('Player was kicked from the game');
+            alert('You have been removed from the game by the host.');
+            window.localStorage.removeItem('taboo_player_id');
+            setPlayerId('');
+            setPlayerName('');
+            setScreen('home');
+            setGameId('');
+            setGameState(null);
+            return;
+          }
+
           setGameState(newState);
 
           // Auto-switch to game screen when status changes to 'playing'
@@ -752,6 +1419,47 @@ export default function App() {
       };
     }
   }, [gameId, screen]);
+
+  // Heartbeat to track player presence
+  useEffect(() => {
+    if (!gameId || !playerId || (screen !== 'game' && screen !== 'lobby')) return;
+
+    const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
+    const DISCONNECT_THRESHOLD = 15000; // Consider disconnected after 15 seconds
+
+    const sendHeartbeat = async () => {
+      try {
+        const result = await window.storage.get(`game:${gameId}`, true);
+        if (!result) return;
+
+        const game = JSON.parse(result.value);
+        const now = Date.now();
+
+        // Update all players' connection status
+        const updatedPlayers = game.players.map(p => {
+          if (p.id === playerId) {
+            // Current player: update lastSeen and mark as connected
+            return { ...p, lastSeen: now, connected: true };
+          }
+          // Other players: check if they've sent a heartbeat recently
+          const isConnected = p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD;
+          return { ...p, connected: isConnected };
+        });
+
+        await window.storage.set(`game:${gameId}`, JSON.stringify({ ...game, players: updatedPlayers }), true);
+      } catch (err) {
+        console.error('Heartbeat error:', err);
+      }
+    };
+
+    // Send initial heartbeat
+    sendHeartbeat();
+
+    // Set up interval
+    const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [gameId, playerId, screen]);
 
   const generateId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -783,6 +1491,9 @@ export default function App() {
       window.localStorage.setItem('taboo_player_id', newPlayerId);
       setGameState(game);
       setScreen('lobby');
+
+      // Run cleanup in background (don't await)
+      firebaseStorage.cleanupOldGames();
     } catch (err) {
       console.error('Create game error:', err);
       alert('Failed to create game: ' + err.message);
@@ -865,22 +1576,11 @@ export default function App() {
 
   const startGame = async () => {
     if (!gameState) return;
-    
-    const wordPool = [];
-    const difficulty = gameState.settings.difficulty;
-    
-    if (difficulty === 'easy' || difficulty === 'mixed') {
-      wordPool.push(...WORD_LISTS.easy);
-    }
-    if (difficulty === 'medium' || difficulty === 'mixed') {
-      wordPool.push(...WORD_LISTS.medium);
-    }
-    if (difficulty === 'hard' || difficulty === 'mixed') {
-      wordPool.push(...WORD_LISTS.hard);
-    }
 
+    // Generate random words for the first round (20 words per round)
+    const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
     const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-    const words = shuffled.slice(0, gameState.settings.rounds * 5);
+    const words = shuffled.slice(0, 20);
 
     await updateGame({
       status: 'playing',
@@ -957,28 +1657,32 @@ export default function App() {
   const endRound = async () => {
     if (!gameState) return;
 
-    if (gameState.currentRound >= gameState.settings.rounds) {
-      await updateGame({ status: 'finished' });
-      return;
-    }
+    const isLastRound = gameState.currentRound >= gameState.settings.rounds;
 
-    // Start 10-second break
+    // Start break period (also for last round to show summary)
     const nextDescriberIndex = (gameState.players.findIndex(p => p.id === gameState.currentDescriber) + 1) % gameState.players.length;
     const nextDescriber = gameState.players[nextDescriberIndex].id;
 
     await updateGame({
       roundEndTime: Date.now(),
-      breakEndTime: Date.now() + 10000, // 10 second break
+      breakEndTime: Date.now() + (isLastRound ? 20000 : 10000), // 20 seconds for final summary, 10 for normal breaks
       currentDescriber: nextDescriber,
-      roundStartTime: null
+      roundStartTime: null,
+      isLastRoundBreak: isLastRound // Flag to indicate this is the final round break
     });
   };
 
   const startNextRound = async () => {
     if (!gameState) return;
 
+    // Generate new random words for this round (20 words per round)
+    const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
+    const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
+    const words = shuffled.slice(0, 20);
+
     await updateGame({
       currentRound: gameState.currentRound + 1,
+      words,
       roundStartTime: Date.now(),
       roundEndTime: null,
       breakEndTime: null,
@@ -987,7 +1691,51 @@ export default function App() {
     });
   };
 
-  const leaveGame = () => {
+  const skipTurn = async () => {
+    if (!gameState || gameState.currentDescriber !== playerId) return;
+
+    // Find the next describer in line
+    const currentIndex = gameState.players.findIndex(p => p.id === playerId);
+    const nextIndex = (currentIndex + 1) % gameState.players.length;
+    const nextDescriber = gameState.players[nextIndex].id;
+
+    // Update the describer without starting the round
+    await updateGame({
+      currentDescriber: nextDescriber,
+      breakEndTime: Date.now() + 10000 // Reset the break timer for the next person
+    });
+  };
+
+  const leaveGame = async () => {
+    // Remove player from the game if we have game state
+    if (gameState && playerId) {
+      try {
+        const updatedPlayers = gameState.players.filter(p => p.id !== playerId);
+
+        // If this was the host and there are other players, assign new host
+        let newHostId = gameState.host;
+        if (gameState.host === playerId && updatedPlayers.length > 0) {
+          newHostId = updatedPlayers[0].id;
+        }
+
+        // If this was the current describer, assign next describer
+        let newDescriber = gameState.currentDescriber;
+        if (gameState.currentDescriber === playerId && updatedPlayers.length > 0) {
+          const currentIndex = gameState.players.findIndex(p => p.id === playerId);
+          const nextIndex = currentIndex % updatedPlayers.length;
+          newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
+        }
+
+        await updateGame({
+          players: updatedPlayers,
+          host: newHostId,
+          currentDescriber: newDescriber
+        });
+      } catch (err) {
+        console.error('Error removing player from game:', err);
+      }
+    }
+
     setScreen('home');
     setGameId('');
     setGameState(null);
@@ -1006,10 +1754,19 @@ export default function App() {
         newHostId = updatedPlayers[0].id;
       }
 
+      // If this was the current describer, assign next describer
+      let newDescriber = gameState.currentDescriber;
+      if (gameState.currentDescriber === playerId && updatedPlayers.length > 0) {
+        const currentIndex = gameState.players.findIndex(p => p.id === playerId);
+        const nextIndex = currentIndex % updatedPlayers.length;
+        newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
+      }
+
       // Update the game state
       await updateGame({
         players: updatedPlayers,
-        host: newHostId
+        host: newHostId,
+        currentDescriber: newDescriber
       });
 
       // Clear local storage
@@ -1042,22 +1799,10 @@ export default function App() {
       // Reset all player scores
       const resetPlayers = gameState.players.map(p => ({ ...p, score: 0 }));
 
-      // Select new words based on settings
-      const wordPool = [];
-      const difficulty = newSettings.difficulty;
-
-      if (difficulty === 'easy' || difficulty === 'mixed') {
-        wordPool.push(...WORD_LISTS.easy);
-      }
-      if (difficulty === 'medium' || difficulty === 'mixed') {
-        wordPool.push(...WORD_LISTS.medium);
-      }
-      if (difficulty === 'hard' || difficulty === 'mixed') {
-        wordPool.push(...WORD_LISTS.hard);
-      }
-
+      // Select new words for the first round (20 words per round)
+      const wordPool = getWordsForDifficulty(newSettings.difficulty, 300);
       const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-      const words = shuffled.slice(0, newSettings.rounds * 5);
+      const words = shuffled.slice(0, 20);
 
       await updateGame({
         players: resetPlayers,
@@ -1086,6 +1831,55 @@ export default function App() {
     alert('Game link copied!');
   };
 
+  const kickPlayer = async (playerIdToKick) => {
+    if (!gameState || !isHost) return;
+
+    if (!window.confirm('Are you sure you want to kick this player?')) return;
+
+    try {
+      const updatedPlayers = gameState.players.filter(p => p.id !== playerIdToKick);
+
+      // If the kicked player was the current describer, move to next player
+      let newDescriber = gameState.currentDescriber;
+      if (gameState.currentDescriber === playerIdToKick && updatedPlayers.length > 0) {
+        const currentIndex = gameState.players.findIndex(p => p.id === playerIdToKick);
+        const nextIndex = currentIndex % updatedPlayers.length;
+        newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
+      }
+
+      await updateGame({
+        players: updatedPlayers,
+        currentDescriber: newDescriber
+      });
+
+      console.log('Player kicked successfully');
+    } catch (err) {
+      console.error('Kick player error:', err);
+      alert('Failed to kick player: ' + err.message);
+    }
+  };
+
+  const promoteDescriber = async (newDescriberId) => {
+    if (!gameState || !isHost) return;
+
+    // Only allow during break periods (not mid-round)
+    if (gameState.roundStartTime && !gameState.breakEndTime) {
+      alert('Cannot change describer during an active round. Wait for the round to end.');
+      return;
+    }
+
+    try {
+      await updateGame({
+        currentDescriber: newDescriberId,
+        breakEndTime: Date.now() + 10000 // Reset break timer for the new describer
+      });
+      console.log('Describer changed successfully');
+    } catch (err) {
+      console.error('Promote describer error:', err);
+      alert('Failed to change describer: ' + err.message);
+    }
+  };
+
   const isHost = gameState?.host === playerId;
   const isDescriber = gameState?.currentDescriber === playerId;
 
@@ -1102,6 +1896,13 @@ export default function App() {
       endRound();
     }
   }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost, endRound]);
+
+  // Handle transition from last round break to finished state
+  useEffect(() => {
+    if (gameState?.isLastRoundBreak && breakTimeRemaining === 0 && isHost) {
+      updateGame({ status: 'finished', isLastRoundBreak: false });
+    }
+  }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
 
   if (screen === 'home') {
     return <HomeScreen 
@@ -1146,9 +1947,13 @@ export default function App() {
       submitGuess={submitGuess}
       isHost={isHost}
       startNextRound={startNextRound}
+      skipTurn={skipTurn}
       leaveGame={leaveGame}
       logoutPlayer={logoutPlayer}
       restartGame={restartGame}
+      copyGameLink={copyGameLink}
+      kickPlayer={kickPlayer}
+      promoteDescriber={promoteDescriber}
     />;
   }
 

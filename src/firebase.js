@@ -1,6 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get, onValue, remove } from "firebase/database";
 
+// Game expiry in days
+const GAME_EXPIRY_DAYS = 3;
+
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -56,6 +59,41 @@ export const firebaseStorage = {
         callback(snapshot.val());
       }
     });
+  },
+
+  // Cleanup old games
+  async cleanupOldGames() {
+    try {
+      const gamesRef = ref(database, 'game');
+      const snapshot = await get(gamesRef);
+
+      if (!snapshot.exists()) return { deleted: 0 };
+
+      const now = Date.now();
+      const expiryMs = GAME_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+      let deletedCount = 0;
+
+      const games = snapshot.val();
+      const deletePromises = [];
+
+      for (const [gameId, gameData] of Object.entries(games)) {
+        const game = typeof gameData === 'string' ? JSON.parse(gameData) : gameData;
+        const createdAt = game.createdAt || 0;
+
+        if (now - createdAt > expiryMs) {
+          console.log(`Deleting expired game: ${gameId} (created ${Math.floor((now - createdAt) / (24 * 60 * 60 * 1000))} days ago)`);
+          deletePromises.push(remove(ref(database, `game/${gameId}`)));
+          deletedCount++;
+        }
+      }
+
+      await Promise.all(deletePromises);
+      console.log(`Cleanup complete: deleted ${deletedCount} old games`);
+      return { deleted: deletedCount };
+    } catch (err) {
+      console.error('Cleanup error:', err);
+      return { deleted: 0, error: err.message };
+    }
   }
 };
 
