@@ -1,9 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Games collection - allow read/write for all users (anonymous game access)
-    match /games/{gameId} {
-      allow read, write: if true;
+    // Deny all access - Firestore is not used, only Realtime Database
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
