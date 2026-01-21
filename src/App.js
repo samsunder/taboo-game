@@ -1298,6 +1298,8 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
 
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
   const winner = sortedPlayers[0];
+  const connectedPlayers = gameState.players.filter(p => p.connected !== false);
+  const canRestart = connectedPlayers.length >= 2;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4">
@@ -1385,9 +1387,21 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
               {showSettings ? 'Hide Settings' : 'Change Settings'}
             </button>
 
+            {!canRestart && (
+              <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl px-4 py-3 text-amber-300 text-center">
+                <AlertCircle className="w-5 h-5 inline mr-2" />
+                Need at least 2 connected players to restart ({connectedPlayers.length} connected)
+              </div>
+            )}
+
             <button
               onClick={() => restartGame(newSettings)}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+              disabled={!canRestart}
+              className={`w-full px-6 py-4 rounded-xl font-bold text-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                canRestart
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105'
+                  : 'bg-slate-600 cursor-not-allowed opacity-50'
+              }`}
             >
               <Play className="w-6 h-6" />
               Restart Game
@@ -1886,9 +1900,10 @@ export default function App() {
   const restartGame = async (newSettings) => {
     if (!gameState || !isHost) return;
 
-    // Check if there are at least 2 players
-    if (gameState.players.length < 2) {
-      alert('Cannot restart game! You need at least 2 players to play. Please wait for more players to join.');
+    // Check if there are at least 2 connected players
+    const connectedPlayers = gameState.players.filter(p => p.connected !== false);
+    if (connectedPlayers.length < 2) {
+      alert('Cannot restart game! You need at least 2 connected players to play. Please wait for more players to join.');
       return;
     }
 
