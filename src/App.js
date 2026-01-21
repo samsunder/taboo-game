@@ -593,6 +593,11 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
   const team1 = gameState.players.filter(p => p.team === 1);
   const team2 = gameState.players.filter(p => p.team === 2);
 
+  // For team mode, require at least 2 players per team (4 total)
+  const canStartTeamGame = team1.length >= 2 && team2.length >= 2;
+  const canStartFFAGame = gameState.players.length >= 2;
+  const canStart = gameState.settings.teamMode ? canStartTeamGame : canStartFFAGame;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
       <div className="max-w-4xl mx-auto space-y-6 py-8">
@@ -637,10 +642,10 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
 
         {gameState.settings.teamMode ? (
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-cyan-500/20 backdrop-blur-md rounded-2xl p-6 border border-cyan-500/30">
+            <div className={`backdrop-blur-md rounded-2xl p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
                 <Users className="w-5 h-5" />
-                Team 1
+                Team 1 ({team1.length}/2+)
               </h3>
               <div className="space-y-2">
                 {team1.map(player => (
@@ -649,12 +654,17 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
                     {player.name}
                   </div>
                 ))}
+                {team1.length < 2 && (
+                  <div className="text-cyan-400/60 text-sm italic px-4 py-2">
+                    Need {2 - team1.length} more player{2 - team1.length > 1 ? 's' : ''}...
+                  </div>
+                )}
               </div>
             </div>
-            <div className="bg-rose-500/20 backdrop-blur-md rounded-2xl p-6 border border-rose-500/30">
+            <div className={`backdrop-blur-md rounded-2xl p-6 border ${team2.length >= 2 ? 'bg-rose-500/20 border-rose-500/30' : 'bg-rose-500/10 border-rose-500/20'}`}>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-rose-300">
                 <Users className="w-5 h-5" />
-                Team 2
+                Team 2 ({team2.length}/2+)
               </h3>
               <div className="space-y-2">
                 {team2.map(player => (
@@ -663,6 +673,11 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
                     {player.name}
                   </div>
                 ))}
+                {team2.length < 2 && (
+                  <div className="text-rose-400/60 text-sm italic px-4 py-2">
+                    Need {2 - team2.length} more player{2 - team2.length > 1 ? 's' : ''}...
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -683,7 +698,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
           </div>
         )}
 
-        {isHost && gameState.players.length >= 2 && (
+        {isHost && canStart && (
           <button
             onClick={startGame}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
@@ -693,9 +708,11 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
           </button>
         )}
 
-        {isHost && gameState.players.length < 2 && (
+        {isHost && !canStart && (
           <div className="text-center text-slate-400">
-            Waiting for at least 2 players to start...
+            {gameState.settings.teamMode
+              ? `Waiting for at least 2 players per team (${team1.length} in Team 1, ${team2.length} in Team 2)...`
+              : 'Waiting for at least 2 players to start...'}
           </div>
         )}
 
@@ -898,6 +915,19 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   const onlinePlayers = gameState.players.filter(p => p.connected !== false);
   const availableDescribers = onlinePlayers.filter(p => p.id !== gameState.currentDescriber);
 
+  // Team mode info
+  const isTeamMode = gameState.settings.teamMode;
+  const currentPlayingTeam = gameState.currentPlayingTeam;
+  const isOnActiveTeam = isTeamMode ? player?.team === currentPlayingTeam : true;
+  const isIdleTeam = isTeamMode && !isOnActiveTeam;
+  const canGuess = !isDescriber && isOnActiveTeam;
+
+  // Calculate team scores
+  const team1Players = gameState.players.filter(p => p.team === 1);
+  const team2Players = gameState.players.filter(p => p.team === 2);
+  const team1Score = team1Players.reduce((sum, p) => sum + p.score, 0);
+  const team2Score = team2Players.reduce((sum, p) => sum + p.score, 0);
+
   // Check if we're in break period
   const isBreak = gameState.breakEndTime && !gameState.roundStartTime;
 
@@ -922,12 +952,29 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
           {/* Header - Round Complete */}
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-              {gameState.isLastRoundBreak ? 'Final Round Complete!' : `Round ${gameState.currentRound} Complete!`}
+              {gameState.isLastRoundBreak ? 'Final Round Complete!' :
+                isTeamMode ? `Team ${currentPlayingTeam === 1 ? 2 : 1}'s Turn Complete!` : `Round ${gameState.currentRound} Complete!`}
             </h1>
             {gameState.isLastRoundBreak && (
               <p className="text-slate-300 mt-2">Results coming up...</p>
             )}
           </div>
+
+          {/* Team Scores during break (team mode only) */}
+          {isTeamMode && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`backdrop-blur-md rounded-xl p-4 border text-center ${currentPlayingTeam === 1 ? 'bg-cyan-500/20 border-cyan-500/40' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
+                <span className="text-cyan-300 font-bold">Team 1</span>
+                <p className="text-2xl font-bold text-amber-400">{team1Score}</p>
+                {currentPlayingTeam === 1 && <span className="text-xs text-cyan-400">Playing next</span>}
+              </div>
+              <div className={`backdrop-blur-md rounded-xl p-4 border text-center ${currentPlayingTeam === 2 ? 'bg-rose-500/20 border-rose-500/40' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                <span className="text-rose-300 font-bold">Team 2</span>
+                <p className="text-2xl font-bold text-amber-400">{team2Score}</p>
+                {currentPlayingTeam === 2 && <span className="text-xs text-rose-400">Playing next</span>}
+              </div>
+            </div>
+          )}
 
           {/* Next Round Card - Primary Action at Top (only show if not last round) */}
           {!gameState.isLastRoundBreak ? (
@@ -939,10 +986,17 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     <span className="text-2xl font-bold">{breakTimeRemaining}s</span>
                   </div>
                   <div className="text-center sm:text-left">
-                    <p className="text-sm text-slate-400">Round {gameState.currentRound + 1} starts in</p>
+                    <p className="text-sm text-slate-400">
+                      {isTeamMode ? `Team ${currentPlayingTeam}'s turn` : `Round ${gameState.currentRound + 1}`} starts in
+                    </p>
                     <p className="text-lg">
                       <span className="text-slate-400">Next up: </span>
                       <span className={`font-bold ${isDescriberOffline ? 'text-red-400' : 'text-cyan-300'}`}>{describer?.name}</span>
+                      {isTeamMode && (
+                        <span className={`text-xs ml-2 px-1.5 py-0.5 rounded ${currentPlayingTeam === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                          Team {currentPlayingTeam}
+                        </span>
+                      )}
                       {isDescriber && <span className="text-xs ml-2 text-amber-400">(You)</span>}
                       {isDescriberOffline && <span className="text-xs ml-2 text-red-400">(Offline)</span>}
                     </p>
@@ -1136,8 +1190,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
       <div className="max-w-6xl mx-auto space-y-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className={`flex items-center gap-2 bg-slate-800/50 px-4 py-2 rounded-xl border ${timeRemaining <= 10 ? 'bg-red-500/20 border-red-500/50' : 'border-slate-700'}`}>
               <Timer className={`w-5 h-5 ${timeRemaining <= 10 ? 'text-red-400 animate-pulse' : 'text-cyan-400'}`} />
               <span className={`text-2xl font-bold ${timeRemaining <= 10 ? 'text-red-400' : 'text-white'}`}>{timeRemaining}s</span>
@@ -1145,10 +1199,21 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             <div className="bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
               Round {gameState.currentRound}/{gameState.settings.rounds}
             </div>
-            <div className="bg-gradient-to-r from-amber-500/20 to-orange-600/20 px-4 py-2 rounded-xl border border-amber-500/30">
-              <span className="text-slate-300 text-sm mr-2">Score:</span>
-              <span className="text-xl font-bold text-amber-400">{player?.score || 0}</span>
-            </div>
+            {isTeamMode ? (
+              <div className="flex items-center gap-2">
+                <div className={`px-3 py-2 rounded-xl border ${currentPlayingTeam === 1 ? 'bg-cyan-500/30 border-cyan-500/50' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
+                  <span className="text-cyan-300 text-sm font-medium">T1: {team1Score}</span>
+                </div>
+                <div className={`px-3 py-2 rounded-xl border ${currentPlayingTeam === 2 ? 'bg-rose-500/30 border-rose-500/50' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                  <span className="text-rose-300 text-sm font-medium">T2: {team2Score}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-amber-500/20 to-orange-600/20 px-4 py-2 rounded-xl border border-amber-500/30">
+                <span className="text-slate-300 text-sm mr-2">Score:</span>
+                <span className="text-xl font-bold text-amber-400">{player?.score || 0}</span>
+              </div>
+            )}
           </div>
           <GameMenu
             gameState={gameState}
@@ -1161,12 +1226,38 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
           />
         </div>
 
+        {/* Team Mode Status Banner */}
+        {isTeamMode && (
+          <div className={`text-center py-2 px-4 rounded-xl ${
+            isIdleTeam
+              ? 'bg-slate-700/50 border border-slate-600'
+              : currentPlayingTeam === 1
+                ? 'bg-cyan-500/20 border border-cyan-500/40'
+                : 'bg-rose-500/20 border border-rose-500/40'
+          }`}>
+            {isIdleTeam ? (
+              <span className="text-slate-300">
+                Team {currentPlayingTeam} is playing - Watch and wait for your turn!
+              </span>
+            ) : (
+              <span className={currentPlayingTeam === 1 ? 'text-cyan-300' : 'text-rose-300'}>
+                Your team (Team {currentPlayingTeam}) is playing!
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-md rounded-2xl p-6 border border-cyan-500/20">
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center gap-2 text-cyan-300">
                 <Crown className="w-5 h-5 text-amber-400" />
                 <span>Describer: {describer?.name}</span>
+                {isTeamMode && (
+                  <span className={`text-xs px-2 py-0.5 rounded ${describer?.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                    Team {describer?.team}
+                  </span>
+                )}
               </div>
 
               {isDescriber ? (
@@ -1221,7 +1312,11 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-lg text-slate-300">Listen and guess any word!</p>
+                  {isIdleTeam ? (
+                    <p className="text-lg text-slate-400">Watch Team {currentPlayingTeam} play - your turn is coming!</p>
+                  ) : (
+                    <p className="text-lg text-slate-300">Listen and guess any word!</p>
+                  )}
                   <div className="text-center">
                     <div className="text-sm text-slate-400 mb-2">Words Remaining</div>
                     <div className="text-3xl font-bold text-cyan-400">
@@ -1233,7 +1328,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             </div>
           </div>
 
-          {!isDescriber && (
+          {/* Guessing input - only for active team guessers */}
+          {canGuess && (
             <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
               <form onSubmit={(e) => { e.preventDefault(); submitGuess(); }} className="flex gap-3">
                 <input
@@ -1251,6 +1347,13 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                   Submit
                 </button>
               </form>
+            </div>
+          )}
+
+          {/* Idle team watching message */}
+          {isIdleTeam && (
+            <div className="bg-slate-700/30 backdrop-blur-md rounded-2xl p-6 border border-slate-600 text-center">
+              <p className="text-slate-400">You're watching Team {currentPlayingTeam} play. Get ready for your turn!</p>
             </div>
           )}
 
@@ -1296,10 +1399,18 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
 
   if (!gameState) return null;
 
+  const isTeamMode = gameState.settings.teamMode;
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
-  const winner = sortedPlayers[0];
   const connectedPlayers = gameState.players.filter(p => p.connected !== false);
   const canRestart = connectedPlayers.length >= 2;
+
+  // Calculate team scores for team mode
+  const team1Players = gameState.players.filter(p => p.team === 1);
+  const team2Players = gameState.players.filter(p => p.team === 2);
+  const team1Score = team1Players.reduce((sum, p) => sum + p.score, 0);
+  const team2Score = team2Players.reduce((sum, p) => sum + p.score, 0);
+  const winningTeam = team1Score > team2Score ? 1 : team1Score < team2Score ? 2 : 0; // 0 = tie
+  const winner = isTeamMode ? null : sortedPlayers[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4">
@@ -1309,24 +1420,65 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
           <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             Game Over!
           </h1>
-          <p className="text-3xl text-cyan-300">{winner.name} wins!</p>
+          {isTeamMode ? (
+            <p className="text-3xl text-cyan-300">
+              {winningTeam === 0 ? "It's a tie!" : `Team ${winningTeam} wins!`}
+            </p>
+          ) : (
+            <p className="text-3xl text-cyan-300">{winner?.name} wins!</p>
+          )}
         </div>
 
+        {/* Team Scores (for team mode) */}
+        {isTeamMode && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center ${
+              winningTeam === 1 ? 'bg-gradient-to-br from-amber-500/20 to-cyan-500/20 border-amber-500/50' : 'bg-cyan-500/20 border-cyan-500/30'
+            }`}>
+              <h3 className="text-xl font-bold mb-2 flex items-center justify-center gap-2 text-cyan-300">
+                {winningTeam === 1 && <Trophy className="w-5 h-5 text-amber-400" />}
+                Team 1
+              </h3>
+              <p className="text-4xl font-bold text-amber-400">{team1Score}</p>
+              <p className="text-sm text-slate-400 mt-2">{team1Players.length} players</p>
+            </div>
+            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center ${
+              winningTeam === 2 ? 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border-amber-500/50' : 'bg-rose-500/20 border-rose-500/30'
+            }`}>
+              <h3 className="text-xl font-bold mb-2 flex items-center justify-center gap-2 text-rose-300">
+                {winningTeam === 2 && <Trophy className="w-5 h-5 text-amber-400" />}
+                Team 2
+              </h3>
+              <p className="text-4xl font-bold text-amber-400">{team2Score}</p>
+              <p className="text-sm text-slate-400 mt-2">{team2Players.length} players</p>
+            </div>
+          </div>
+        )}
+
         <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-8 border border-amber-500/20">
-          <h2 className="text-2xl font-bold mb-6 text-center">Final Scores</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            {isTeamMode ? 'Individual Contributions' : 'Final Scores'}
+          </h2>
           <div className="space-y-3">
             {sortedPlayers.map((player, idx) => (
               <div
                 key={player.id}
                 className={`flex items-center justify-between px-6 py-4 rounded-xl ${
-                  idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50' :
-                  idx === 1 ? 'bg-slate-400/20 border border-slate-400/50' :
-                  idx === 2 ? 'bg-orange-700/20 border border-orange-700/50' :
+                  !isTeamMode && idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50' :
+                  !isTeamMode && idx === 1 ? 'bg-slate-400/20 border border-slate-400/50' :
+                  !isTeamMode && idx === 2 ? 'bg-orange-700/20 border border-orange-700/50' :
+                  isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/30' :
+                  isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/30' :
                   'bg-slate-800/30 border border-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-3xl font-bold">#{idx + 1}</span>
+                  {!isTeamMode && <span className="text-3xl font-bold">#{idx + 1}</span>}
+                  {isTeamMode && (
+                    <span className={`text-xs px-2 py-1 rounded ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                      T{player.team}
+                    </span>
+                  )}
                   <span className="text-xl font-semibold">{player.name}</span>
                 </div>
                 <span className="text-3xl font-bold text-amber-400">{player.score}</span>
@@ -1577,7 +1729,7 @@ export default function App() {
   const createGame = async (settings) => {
     const newGameId = generateId();
     const newPlayerId = generateId();
-    
+
     const game = {
       id: newGameId,
       host: newPlayerId,
@@ -1586,6 +1738,8 @@ export default function App() {
       status: 'lobby',
       currentRound: 0,
       currentDescriber: newPlayerId,
+      currentPlayingTeam: settings.teamMode ? 1 : null, // Track which team is currently playing
+      teamDescriberIndex: { 1: 0, 2: 0 }, // Track describer rotation within each team
       words: [],
       roundStartTime: null,
       roundEndTime: null,
@@ -1693,6 +1847,20 @@ export default function App() {
     const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
     const words = shuffled.slice(0, 20);
 
+    // For team mode, set up the first describer from team 1
+    let firstDescriber = gameState.currentDescriber;
+    let currentPlayingTeam = gameState.currentPlayingTeam;
+    let teamDescriberIndex = gameState.teamDescriberIndex || { 1: 0, 2: 0 };
+
+    if (gameState.settings.teamMode) {
+      const team1Players = gameState.players.filter(p => p.team === 1);
+      if (team1Players.length > 0) {
+        firstDescriber = team1Players[0].id;
+        currentPlayingTeam = 1;
+        teamDescriberIndex = { 1: 0, 2: 0 };
+      }
+    }
+
     await updateGame({
       status: 'playing',
       currentRound: 1,
@@ -1701,7 +1869,10 @@ export default function App() {
       roundEndTime: null,
       breakEndTime: null,
       guesses: [],
-      submissions: []
+      submissions: [],
+      currentDescriber: firstDescriber,
+      currentPlayingTeam,
+      teamDescriberIndex
     });
     setScreen('game');
   };
@@ -1711,6 +1882,20 @@ export default function App() {
 
     const guessedWord = guessInput.trim().toLowerCase();
     const player = gameState.players.find(p => p.id === playerId);
+
+    // In team mode, only allow guessing if you're on the active team and not the describer
+    if (gameState.settings.teamMode) {
+      if (player.team !== gameState.currentPlayingTeam) {
+        // Player is on the idle team, can't guess
+        setGuessInput('');
+        return;
+      }
+      if (playerId === gameState.currentDescriber) {
+        // Describer can't guess
+        setGuessInput('');
+        return;
+      }
+    }
 
     // Find if this word exists in the word list
     const matchedWord = gameState.words.find(w =>
@@ -1768,16 +1953,55 @@ export default function App() {
   const endRound = async () => {
     if (!gameState) return;
 
-    const isLastRound = gameState.currentRound >= gameState.settings.rounds;
+    const isTeamMode = gameState.settings.teamMode;
+    const totalRounds = gameState.settings.rounds;
 
-    // Start break period (also for last round to show summary)
-    const nextDescriberIndex = (gameState.players.findIndex(p => p.id === gameState.currentDescriber) + 1) % gameState.players.length;
-    const nextDescriber = gameState.players[nextDescriberIndex].id;
+    // In team mode, each "round" has two team turns (team1 then team2)
+    // So actual rounds = totalRounds * 2 team turns
+    let isLastRound;
+    let nextDescriber;
+    let nextPlayingTeam = gameState.currentPlayingTeam;
+    let teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
+
+    if (isTeamMode) {
+      const team1Players = gameState.players.filter(p => p.team === 1);
+      const team2Players = gameState.players.filter(p => p.team === 2);
+      const currentTeam = gameState.currentPlayingTeam;
+
+      if (currentTeam === 1) {
+        // Team 1 just finished, switch to Team 2
+        nextPlayingTeam = 2;
+        // Move to next describer in team 1 for their next turn
+        teamDescriberIndex[1] = (teamDescriberIndex[1] + 1) % team1Players.length;
+        // Get the next describer from team 2
+        const team2DescriberIdx = teamDescriberIndex[2];
+        nextDescriber = team2Players[team2DescriberIdx % team2Players.length]?.id || team2Players[0]?.id;
+        // Not last round yet (team 2 needs to play)
+        isLastRound = false;
+      } else {
+        // Team 2 just finished, this completes one full round
+        nextPlayingTeam = 1;
+        // Move to next describer in team 2 for their next turn
+        teamDescriberIndex[2] = (teamDescriberIndex[2] + 1) % team2Players.length;
+        // Get the next describer from team 1
+        const team1DescriberIdx = teamDescriberIndex[1];
+        nextDescriber = team1Players[team1DescriberIdx % team1Players.length]?.id || team1Players[0]?.id;
+        // Check if this was the last round
+        isLastRound = gameState.currentRound >= totalRounds;
+      }
+    } else {
+      // FFA mode - original logic
+      isLastRound = gameState.currentRound >= totalRounds;
+      const nextDescriberIndex = (gameState.players.findIndex(p => p.id === gameState.currentDescriber) + 1) % gameState.players.length;
+      nextDescriber = gameState.players[nextDescriberIndex].id;
+    }
 
     await updateGame({
       roundEndTime: Date.now(),
       breakEndTime: Date.now() + (isLastRound ? 20000 : 10000), // 20 seconds for final summary, 10 for normal breaks
       currentDescriber: nextDescriber,
+      currentPlayingTeam: nextPlayingTeam,
+      teamDescriberIndex,
       roundStartTime: null,
       isLastRoundBreak: isLastRound // Flag to indicate this is the final round break
     });
@@ -1791,8 +2015,21 @@ export default function App() {
     const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
     const words = shuffled.slice(0, 20);
 
+    const isTeamMode = gameState.settings.teamMode;
+
+    // In team mode, only increment round when team 1 starts (after team 2 finishes)
+    let newRound = gameState.currentRound;
+    if (isTeamMode) {
+      // Increment round only when team 1 is starting (team 2 just finished)
+      if (gameState.currentPlayingTeam === 1) {
+        newRound = gameState.currentRound + 1;
+      }
+    } else {
+      newRound = gameState.currentRound + 1;
+    }
+
     await updateGame({
-      currentRound: gameState.currentRound + 1,
+      currentRound: newRound,
       words,
       roundStartTime: Date.now(),
       roundEndTime: null,
@@ -1805,16 +2042,34 @@ export default function App() {
   const skipTurn = async () => {
     if (!gameState || gameState.currentDescriber !== playerId) return;
 
-    // Find the next describer in line
-    const currentIndex = gameState.players.findIndex(p => p.id === playerId);
-    const nextIndex = (currentIndex + 1) % gameState.players.length;
-    const nextDescriber = gameState.players[nextIndex].id;
+    const isTeamMode = gameState.settings.teamMode;
 
-    // Update the describer without starting the round
-    await updateGame({
-      currentDescriber: nextDescriber,
-      breakEndTime: Date.now() + 10000 // Reset the break timer for the next person
-    });
+    if (isTeamMode) {
+      // In team mode, skip to next describer in the same team
+      const currentTeam = gameState.currentPlayingTeam;
+      const teamPlayers = gameState.players.filter(p => p.team === currentTeam);
+      const teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
+
+      // Move to next describer in the team
+      teamDescriberIndex[currentTeam] = (teamDescriberIndex[currentTeam] + 1) % teamPlayers.length;
+      const nextDescriber = teamPlayers[teamDescriberIndex[currentTeam]]?.id;
+
+      await updateGame({
+        currentDescriber: nextDescriber,
+        teamDescriberIndex,
+        breakEndTime: Date.now() + 10000
+      });
+    } else {
+      // FFA mode - original logic
+      const currentIndex = gameState.players.findIndex(p => p.id === playerId);
+      const nextIndex = (currentIndex + 1) % gameState.players.length;
+      const nextDescriber = gameState.players[nextIndex].id;
+
+      await updateGame({
+        currentDescriber: nextDescriber,
+        breakEndTime: Date.now() + 10000
+      });
+    }
   };
 
   const leaveGame = async () => {
@@ -1916,17 +2171,34 @@ export default function App() {
       const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
       const words = shuffled.slice(0, 20);
 
+      // For team mode, set up the first describer from team 1
+      let firstDescriber = connectedPlayers[0]?.id;
+      let currentPlayingTeam = null;
+      let teamDescriberIndex = { 1: 0, 2: 0 };
+
+      if (newSettings.teamMode) {
+        const team1Players = resetPlayers.filter(p => p.team === 1);
+        if (team1Players.length > 0) {
+          firstDescriber = team1Players[0].id;
+          currentPlayingTeam = 1;
+        }
+      }
+
       await updateGame({
         players: resetPlayers,
         settings: newSettings,
         status: 'playing',
         currentRound: 1,
+        currentDescriber: firstDescriber,
+        currentPlayingTeam,
+        teamDescriberIndex,
         words,
         roundStartTime: Date.now(),
         roundEndTime: null,
         breakEndTime: null,
         guesses: [],
-        submissions: []
+        submissions: [],
+        isLastRoundBreak: false
       });
 
       console.log('Game restarted with new settings');
