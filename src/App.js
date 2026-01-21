@@ -224,6 +224,7 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
                   className="w-5 h-5 accent-cyan-500"
                 />
                 <label htmlFor="teamMode" className="text-slate-300">Team Mode</label>
+                <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">Beta</span>
               </div>
             </div>
           )}
@@ -2361,6 +2362,10 @@ export default function App() {
   const leaveGame = async () => {
     // Remove player from the game if we have game state
     if (gameState && playerId) {
+      // Clear localStorage first to prevent the Firebase listener from
+      // showing "removed by host" alert when we remove ourselves
+      window.localStorage.removeItem('taboo_player_id');
+
       try {
         const updatedPlayers = gameState.players.filter(p => p.id !== playerId);
 
