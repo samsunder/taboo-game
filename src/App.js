@@ -918,8 +918,11 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   // Team mode info
   const isTeamMode = gameState.settings.teamMode;
   const currentPlayingTeam = gameState.currentPlayingTeam;
-  const isOnActiveTeam = isTeamMode ? player?.team === currentPlayingTeam : true;
-  const isIdleTeam = isTeamMode && !isOnActiveTeam;
+  // Player is on active team if: not team mode, OR their team matches the current playing team
+  const playerTeam = player?.team;
+  const isOnActiveTeam = !isTeamMode || (playerTeam != null && playerTeam === currentPlayingTeam);
+  // Player is idle (spectating) if: team mode is on AND they are NOT on the active team
+  const isIdleTeam = isTeamMode && playerTeam != null && playerTeam !== currentPlayingTeam;
   const canGuess = !isDescriber && isOnActiveTeam;
 
   // Calculate team scores
