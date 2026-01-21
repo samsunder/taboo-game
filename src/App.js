@@ -1260,9 +1260,15 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 )}
               </div>
 
-              {isDescriber ? (
+              {/* Show word grid to: describer, idle team spectators */}
+              {/* Show "listen and guess" to: active team guessers */}
+              {(isDescriber || isIdleTeam) ? (
                 <div className="space-y-4">
-                  <p className="text-lg text-cyan-200">Describe any word to your team!</p>
+                  {isDescriber ? (
+                    <p className="text-lg text-cyan-200">Describe any word to your team!</p>
+                  ) : (
+                    <p className="text-lg text-slate-400">Spectating Team {currentPlayingTeam} - watch the words being described!</p>
+                  )}
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                     {gameState.words.map((wordObj, idx) => {
                       const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
@@ -1280,10 +1286,12 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                         4: 'text-rose-300',
                         5: 'text-violet-300'
                       };
+                      // Idle team sees slightly muted colors
+                      const idleOpacity = isIdleTeam ? 'opacity-80' : '';
                       return (
                         <div
                           key={idx}
-                          className={`p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${
+                          className={`p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${idleOpacity} ${
                             isGuessed
                               ? 'bg-slate-800/50 border-slate-600/50 opacity-40'
                               : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[3]}`
@@ -1312,11 +1320,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {isIdleTeam ? (
-                    <p className="text-lg text-slate-400">Watch Team {currentPlayingTeam} play - your turn is coming!</p>
-                  ) : (
-                    <p className="text-lg text-slate-300">Listen and guess any word!</p>
-                  )}
+                  <p className="text-lg text-slate-300">Listen and guess any word!</p>
                   <div className="text-center">
                     <div className="text-sm text-slate-400 mb-2">Words Remaining</div>
                     <div className="text-3xl font-bold text-cyan-400">
@@ -1352,8 +1356,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
 
           {/* Idle team watching message */}
           {isIdleTeam && (
-            <div className="bg-slate-700/30 backdrop-blur-md rounded-2xl p-6 border border-slate-600 text-center">
-              <p className="text-slate-400">You're watching Team {currentPlayingTeam} play. Get ready for your turn!</p>
+            <div className="bg-slate-700/30 backdrop-blur-md rounded-2xl p-4 border border-slate-600 text-center">
+              <p className="text-slate-400 text-sm">Spectating - your team plays next!</p>
             </div>
           )}
 
