@@ -1102,15 +1102,14 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 return (
                   <div
                     key={idx}
-                    className={`p-3 rounded-xl text-center transition-all ${
+                    className={`p-2 sm:p-3 rounded-xl text-center transition-all ${
                       wasGuessed
                         ? 'bg-emerald-500/30 border-2 border-emerald-400/70 shadow-lg shadow-emerald-500/20'
                         : 'bg-slate-800/60 border border-slate-600/50'
                     }`}
                   >
                     <div
-                      className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'}`}
-                      title={wordObj.word}
+                      className={`text-xs sm:text-sm font-bold break-words hyphens-auto leading-tight min-h-[2.5em] flex items-center justify-center ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'}`}
                     >
                       {wordObj.word}
                     </div>
@@ -1294,16 +1293,16 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                       return (
                         <div
                           key={idx}
-                          className={`p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${idleOpacity} ${
+                          className={`p-2 sm:p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${idleOpacity} ${
                             isGuessed
                               ? 'bg-slate-800/50 border-slate-600/50 opacity-40'
                               : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[3]}`
                           }`}
                         >
                           <div className="text-center">
-                            <h3 className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${
+                            <h3 className={`text-xs sm:text-sm font-bold break-words hyphens-auto leading-tight min-h-[2.5em] flex items-center justify-center ${
                               isGuessed ? 'text-slate-400 line-through' : (textColors[wordObj.points] || 'text-white')
-                            }`} title={wordObj.word}>
+                            }`}>
                               {wordObj.word}
                             </h3>
                             <div className="flex items-center justify-center gap-1 mt-1">
