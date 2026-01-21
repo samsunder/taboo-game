@@ -107,13 +107,18 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const validation = validatePlayerName(playerName);
     if (!validation.valid) {
       setNameError(validation.error);
       return;
     }
-    createGame(settings);
+    try {
+      await createGame(settings);
+    } catch (err) {
+      console.error('Create game error:', err);
+      alert('Failed to create game: ' + err.message);
+    }
   };
 
   return (
@@ -1399,9 +1404,133 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   );
 }
 
+// Confetti component for winner celebration
+function Confetti() {
+  const colors = ['#fbbf24', '#22d3ee', '#f472b6', '#a78bfa', '#34d399', '#fb923c'];
+  const confettiPieces = Array.from({ length: 50 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 3,
+    duration: 2 + Math.random() * 2,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    size: 8 + Math.random() * 8,
+    rotation: Math.random() * 360
+  }));
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+      {confettiPieces.map((piece) => (
+        <div
+          key={piece.id}
+          className="absolute animate-confetti-fall"
+          style={{
+            left: `${piece.left}%`,
+            top: '-20px',
+            width: `${piece.size}px`,
+            height: `${piece.size}px`,
+            backgroundColor: piece.color,
+            animationDelay: `${piece.delay}s`,
+            animationDuration: `${piece.duration}s`,
+            transform: `rotate(${piece.rotation}deg)`,
+            borderRadius: Math.random() > 0.5 ? '50%' : '0%'
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes confetti-fall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .animate-confetti-fall {
+          animation: confetti-fall linear forwards;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// Animated counter component
+function AnimatedScore({ value, duration = 1500 }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let startTime;
+    const animate = (currentTime) => {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      setDisplayValue(Math.floor(progress * value));
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
+// Generate player avatar with initials
+function PlayerAvatar({ name, size = 'md', highlight = false }) {
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getColorFromName = (name) => {
+    const colors = [
+      'from-cyan-400 to-blue-500',
+      'from-purple-400 to-pink-500',
+      'from-amber-400 to-orange-500',
+      'from-emerald-400 to-teal-500',
+      'from-rose-400 to-red-500',
+      'from-indigo-400 to-purple-500'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const sizeClasses = {
+    sm: 'w-8 h-8 text-xs',
+    md: 'w-12 h-12 text-sm',
+    lg: 'w-16 h-16 text-lg',
+    xl: 'w-20 h-20 text-xl'
+  };
+
+  return (
+    <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${getColorFromName(name)} flex items-center justify-center font-bold text-white shadow-lg ${highlight ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''}`}>
+      {getInitials(name)}
+    </div>
+  );
+}
+
+// Fun title generator based on performance
+function getPlayerTitle(player, allPlayers, submissions, isWinner) {
+  if (isWinner) return { title: 'Champion', icon: '👑', color: 'text-amber-400' };
+
+  const playerSubmissions = submissions.filter(s => s.playerId === player.id);
+  const correctGuesses = playerSubmissions.filter(s => s.isCorrect).length;
+  const totalSubmissions = playerSubmissions.length;
+
+  if (correctGuesses === 0 && totalSubmissions > 5) return { title: 'Persistent', icon: '💪', color: 'text-blue-400' };
+  if (correctGuesses > 0 && totalSubmissions > 0 && correctGuesses / totalSubmissions > 0.7) return { title: 'Sharpshooter', icon: '🎯', color: 'text-emerald-400' };
+  if (player.score === allPlayers[allPlayers.length - 1]?.score && player.score > 0) return { title: 'Underdog', icon: '🐕', color: 'text-orange-400' };
+  if (correctGuesses >= 5) return { title: 'Word Wizard', icon: '🧙', color: 'text-purple-400' };
+  if (totalSubmissions > 10) return { title: 'Eager Beaver', icon: '🦫', color: 'text-amber-600' };
+
+  return { title: 'Player', icon: '🎮', color: 'text-slate-400' };
+}
+
 function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
   const [showSettings, setShowSettings] = useState(false);
   const [newSettings, setNewSettings] = useState(gameState?.settings || { rounds: 3, roundTime: 60, difficulty: 'mixed', teamMode: false });
+  const [showConfetti, setShowConfetti] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!gameState) return null;
 
@@ -1409,6 +1538,50 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
   const connectedPlayers = gameState.players.filter(p => p.connected !== false);
   const canRestart = connectedPlayers.length >= 2;
+  const submissions = gameState.submissions || [];
+
+  // Calculate game statistics
+  const gameDuration = gameState.createdAt ? Math.floor((Date.now() - gameState.createdAt) / 1000 / 60) : 0;
+  const totalWordsGuessed = (gameState.guesses || []).length;
+  const totalWords = gameState.words?.length || 0;
+
+  // Calculate best streak per player
+  const calculateBestStreak = () => {
+    const streaks = {};
+    let currentStreaks = {};
+
+    submissions.filter(s => s.isCorrect).forEach(sub => {
+      currentStreaks[sub.playerId] = (currentStreaks[sub.playerId] || 0) + 1;
+      streaks[sub.playerId] = Math.max(streaks[sub.playerId] || 0, currentStreaks[sub.playerId]);
+    });
+
+    submissions.filter(s => !s.isCorrect).forEach(sub => {
+      currentStreaks[sub.playerId] = 0;
+    });
+
+    let bestPlayer = null;
+    let bestStreak = 0;
+    Object.entries(streaks).forEach(([playerId, streak]) => {
+      if (streak > bestStreak) {
+        bestStreak = streak;
+        bestPlayer = gameState.players.find(p => p.id === playerId);
+      }
+    });
+
+    return { player: bestPlayer, streak: bestStreak };
+  };
+
+  // Find MVP (most points in a single round concept - approximated by highest scorer)
+  const mvp = sortedPlayers[0];
+  const bestStreakData = calculateBestStreak();
+
+  // Calculate accuracy per player
+  const getPlayerAccuracy = (playerId) => {
+    const playerSubs = submissions.filter(s => s.playerId === playerId);
+    if (playerSubs.length === 0) return 0;
+    const correct = playerSubs.filter(s => s.isCorrect).length;
+    return Math.round((correct / playerSubs.length) * 100);
+  };
 
   // Calculate team scores for team mode
   const team1Players = gameState.players.filter(p => p.team === 1);
@@ -1419,82 +1592,187 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
   const winner = isTeamMode ? null : sortedPlayers[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 overflow-hidden">
+      {/* Confetti Animation */}
+      {showConfetti && <Confetti />}
+
+      <div className="max-w-4xl w-full space-y-6 relative z-10">
+        {/* Winner Announcement with Animated Trophy */}
         <div className="text-center space-y-4">
-          <Trophy className="w-24 h-24 text-amber-400 mx-auto" />
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+          <div className="relative inline-block">
+            <Trophy className="w-24 h-24 text-amber-400 mx-auto animate-bounce" />
+            <div className="absolute inset-0 w-24 h-24 mx-auto bg-amber-400/20 rounded-full blur-xl animate-pulse" />
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 bg-clip-text text-transparent animate-pulse">
             Game Over!
           </h1>
           {isTeamMode ? (
-            <p className="text-3xl text-cyan-300">
+            <p className="text-2xl md:text-3xl text-cyan-300">
               {winningTeam === 0 ? "It's a tie!" : `Team ${winningTeam} wins!`}
             </p>
           ) : (
-            <p className="text-3xl text-cyan-300">{winner?.name} wins!</p>
+            <div className="flex items-center justify-center gap-3">
+              <PlayerAvatar name={winner?.name || 'Winner'} size="lg" highlight />
+              <p className="text-2xl md:text-3xl text-cyan-300">{winner?.name} wins!</p>
+            </div>
           )}
+        </div>
+
+        {/* Game Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-cyan-500/20 to-blue-600/20 backdrop-blur-md rounded-xl p-4 border border-cyan-500/30 text-center">
+            <Clock className="w-6 h-6 mx-auto mb-2 text-cyan-400" />
+            <p className="text-2xl font-bold text-white">{gameDuration}</p>
+            <p className="text-xs text-slate-400">Minutes Played</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-500/20 to-teal-600/20 backdrop-blur-md rounded-xl p-4 border border-emerald-500/30 text-center">
+            <Target className="w-6 h-6 mx-auto mb-2 text-emerald-400" />
+            <p className="text-2xl font-bold text-white">{totalWordsGuessed}/{totalWords}</p>
+            <p className="text-xs text-slate-400">Words Guessed</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500/20 to-pink-600/20 backdrop-blur-md rounded-xl p-4 border border-purple-500/30 text-center">
+            <Sparkles className="w-6 h-6 mx-auto mb-2 text-purple-400" />
+            <p className="text-2xl font-bold text-white">{bestStreakData.streak}</p>
+            <p className="text-xs text-slate-400">Best Streak</p>
+          </div>
+          <div className="bg-gradient-to-br from-amber-500/20 to-orange-600/20 backdrop-blur-md rounded-xl p-4 border border-amber-500/30 text-center">
+            <Star className="w-6 h-6 mx-auto mb-2 text-amber-400" />
+            <p className="text-2xl font-bold text-white">{mvp?.name?.split(' ')[0] || '-'}</p>
+            <p className="text-xs text-slate-400">MVP</p>
+          </div>
         </div>
 
         {/* Team Scores (for team mode) */}
         {isTeamMode && (
           <div className="grid grid-cols-2 gap-4">
-            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center ${
-              winningTeam === 1 ? 'bg-gradient-to-br from-amber-500/20 to-cyan-500/20 border-amber-500/50' : 'bg-cyan-500/20 border-cyan-500/30'
+            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center transform transition-all hover:scale-105 ${
+              winningTeam === 1 ? 'bg-gradient-to-br from-amber-500/20 to-cyan-500/20 border-amber-500/50 shadow-lg shadow-amber-500/20' : 'bg-cyan-500/20 border-cyan-500/30'
             }`}>
               <h3 className="text-xl font-bold mb-2 flex items-center justify-center gap-2 text-cyan-300">
                 {winningTeam === 1 && <Trophy className="w-5 h-5 text-amber-400" />}
                 Team 1
               </h3>
-              <p className="text-4xl font-bold text-amber-400">{team1Score}</p>
+              <p className="text-4xl font-bold text-amber-400"><AnimatedScore value={team1Score} /></p>
               <p className="text-sm text-slate-400 mt-2">{team1Players.length} players</p>
             </div>
-            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center ${
-              winningTeam === 2 ? 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border-amber-500/50' : 'bg-rose-500/20 border-rose-500/30'
+            <div className={`backdrop-blur-md rounded-2xl p-6 border text-center transform transition-all hover:scale-105 ${
+              winningTeam === 2 ? 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border-amber-500/50 shadow-lg shadow-amber-500/20' : 'bg-rose-500/20 border-rose-500/30'
             }`}>
               <h3 className="text-xl font-bold mb-2 flex items-center justify-center gap-2 text-rose-300">
                 {winningTeam === 2 && <Trophy className="w-5 h-5 text-amber-400" />}
                 Team 2
               </h3>
-              <p className="text-4xl font-bold text-amber-400">{team2Score}</p>
+              <p className="text-4xl font-bold text-amber-400"><AnimatedScore value={team2Score} /></p>
               <p className="text-sm text-slate-400 mt-2">{team2Players.length} players</p>
             </div>
           </div>
         )}
 
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-8 border border-amber-500/20">
-          <h2 className="text-2xl font-bold mb-6 text-center">
-            {isTeamMode ? 'Individual Contributions' : 'Final Scores'}
+        {/* Podium for top 3 (non-team mode) */}
+        {!isTeamMode && sortedPlayers.length >= 3 && (
+          <div className="flex items-end justify-center gap-2 md:gap-4 h-48">
+            {/* 2nd Place */}
+            <div className="flex flex-col items-center">
+              <PlayerAvatar name={sortedPlayers[1]?.name || ''} size="md" />
+              <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[1]?.name}</p>
+              <div className="bg-gradient-to-t from-slate-400/40 to-slate-300/20 border border-slate-400/50 rounded-t-lg w-20 md:w-24 h-24 flex flex-col items-center justify-center mt-2">
+                <span className="text-3xl">🥈</span>
+                <p className="text-xl font-bold text-white"><AnimatedScore value={sortedPlayers[1]?.score || 0} /></p>
+              </div>
+            </div>
+            {/* 1st Place */}
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <PlayerAvatar name={sortedPlayers[0]?.name || ''} size="lg" highlight />
+                <div className="absolute -top-2 -right-2 text-2xl animate-bounce">👑</div>
+              </div>
+              <p className="text-sm font-semibold mt-2 text-amber-300 truncate max-w-[80px]">{sortedPlayers[0]?.name}</p>
+              <div className="bg-gradient-to-t from-amber-500/40 to-yellow-400/20 border-2 border-amber-500/50 rounded-t-lg w-24 md:w-28 h-32 flex flex-col items-center justify-center mt-2 shadow-lg shadow-amber-500/20">
+                <span className="text-4xl">🥇</span>
+                <p className="text-2xl font-bold text-amber-400"><AnimatedScore value={sortedPlayers[0]?.score || 0} /></p>
+              </div>
+            </div>
+            {/* 3rd Place */}
+            <div className="flex flex-col items-center">
+              <PlayerAvatar name={sortedPlayers[2]?.name || ''} size="md" />
+              <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[2]?.name}</p>
+              <div className="bg-gradient-to-t from-orange-700/40 to-orange-600/20 border border-orange-700/50 rounded-t-lg w-20 md:w-24 h-20 flex flex-col items-center justify-center mt-2">
+                <span className="text-2xl">🥉</span>
+                <p className="text-lg font-bold text-white"><AnimatedScore value={sortedPlayers[2]?.score || 0} /></p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full Leaderboard */}
+        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-cyan-400" />
+            {isTeamMode ? 'Individual Contributions' : 'Final Standings'}
           </h2>
-          <div className="space-y-3">
-            {sortedPlayers.map((player, idx) => (
-              <div
-                key={player.id}
-                className={`flex items-center justify-between px-6 py-4 rounded-xl ${
-                  !isTeamMode && idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50' :
-                  !isTeamMode && idx === 1 ? 'bg-slate-400/20 border border-slate-400/50' :
-                  !isTeamMode && idx === 2 ? 'bg-orange-700/20 border border-orange-700/50' :
-                  isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/30' :
-                  isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/30' :
-                  'bg-slate-800/30 border border-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  {!isTeamMode && <span className="text-3xl font-bold">#{idx + 1}</span>}
+          <div className="space-y-2">
+            {sortedPlayers.map((player, idx) => {
+              const playerTitle = getPlayerTitle(player, sortedPlayers, submissions, idx === 0 && !isTeamMode);
+              const accuracy = getPlayerAccuracy(player.id);
+
+              return (
+                <div
+                  key={player.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:scale-[1.02] ${
+                    !isTeamMode && idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50' :
+                    !isTeamMode && idx === 1 ? 'bg-gradient-to-r from-slate-400/10 to-slate-300/10 border border-slate-400/30' :
+                    !isTeamMode && idx === 2 ? 'bg-gradient-to-r from-orange-700/20 to-orange-600/10 border border-orange-700/30' :
+                    isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/30' :
+                    isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/30' :
+                    'bg-slate-800/30 border border-slate-700/50'
+                  }`}
+                >
+                  {/* Rank */}
+                  {!isTeamMode && (
+                    <span className="text-2xl font-bold w-8 text-center">
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    </span>
+                  )}
+
+                  {/* Team Badge */}
                   {isTeamMode && (
-                    <span className={`text-xs px-2 py-1 rounded ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                    <span className={`text-xs px-2 py-1 rounded font-semibold ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
                       T{player.team}
                     </span>
                   )}
-                  <span className="text-xl font-semibold">{player.name}</span>
+
+                  {/* Avatar */}
+                  <PlayerAvatar name={player.name} size="sm" />
+
+                  {/* Name and Title */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{player.name}</p>
+                    <p className={`text-xs ${playerTitle.color}`}>
+                      {playerTitle.icon} {playerTitle.title}
+                    </p>
+                  </div>
+
+                  {/* Accuracy */}
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-slate-400">Accuracy</p>
+                    <p className="text-sm font-semibold text-emerald-400">{accuracy}%</p>
+                  </div>
+
+                  {/* Score */}
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-amber-400">
+                      <AnimatedScore value={player.score} duration={1000 + idx * 200} />
+                    </p>
+                  </div>
                 </div>
-                <span className="text-3xl font-bold text-amber-400">{player.score}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
+        {/* Host Controls */}
         {isHost ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {showSettings && (
               <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
                 <h3 className="text-xl font-bold mb-2">Game Settings</h3>
@@ -1552,25 +1830,27 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
               </div>
             )}
 
-            <button
-              onClick={() => restartGame(newSettings)}
-              disabled={!canRestart}
-              className={`w-full px-6 py-4 rounded-xl font-bold text-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
-                canRestart
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105'
-                  : 'bg-slate-600 cursor-not-allowed opacity-50'
-              }`}
-            >
-              <Play className="w-6 h-6" />
-              Restart Game
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => restartGame(newSettings)}
+                disabled={!canRestart}
+                className={`px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
+                  canRestart
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105'
+                    : 'bg-slate-600 cursor-not-allowed opacity-50'
+                }`}
+              >
+                <Play className="w-5 h-5" />
+                Play Again
+              </button>
 
-            <button
-              onClick={leaveGame}
-              className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105"
-            >
-              Back to Home
-            </button>
+              <button
+                onClick={leaveGame}
+                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105"
+              >
+                Exit
+              </button>
+            </div>
           </div>
         ) : (
           <button
