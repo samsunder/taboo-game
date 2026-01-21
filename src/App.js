@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
@@ -9,6 +9,9 @@ window.storage = firebaseStorage;
 // Player name validation
 const PLAYER_NAME_MAX_LENGTH = 20;
 const PLAYER_NAME_MIN_LENGTH = 2;
+
+// Player emoji options
+const PLAYER_EMOJIS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🚀', '⭐', '🎮', '🎯', '🔥'];
 
 const validatePlayerName = (name) => {
   const trimmed = name.trim();
@@ -84,7 +87,7 @@ function FloatingParticles() {
   );
 }
 
-function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
+function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, setScreen, createGame }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [nameError, setNameError] = useState(null);
@@ -128,8 +131,9 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
       <div className="max-w-md w-full space-y-6 relative z-10">
         {/* Logo and Title */}
         <div className="text-center space-y-2">
-          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-logo-glow transform hover:scale-110 transition-transform duration-300">
-            <Zap className="w-12 h-12 drop-shadow-lg" />
+          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-logo-glow transform hover:scale-110 transition-transform duration-300 relative">
+            <MessageCircle className="w-14 h-14 drop-shadow-lg" />
+            <span className="absolute inset-0 flex items-center justify-center text-cyan-900 font-bold text-sm mt-1">Aa</span>
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent animate-shimmer">
             Taboo Online
@@ -174,6 +178,26 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
             )}
             <div className="text-right text-xs text-slate-500 mt-1">
               {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
+            </div>
+          </div>
+
+          {/* Emoji Picker */}
+          <div>
+            <label className="block text-sm text-slate-300 mb-2">Choose your avatar</label>
+            <div className="flex flex-wrap gap-2">
+              {PLAYER_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => setPlayerEmoji(emoji)}
+                  className={`w-10 h-10 text-xl rounded-lg transition-all ${
+                    playerEmoji === emoji
+                      ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110'
+                      : 'bg-slate-700/50 border border-slate-600 hover:border-slate-500'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -366,7 +390,7 @@ function HomeScreen({ playerName, setPlayerName, setScreen, createGame }) {
   );
 }
 
-function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, setScreen }) {
+function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji, setPlayerEmoji, joinGame, setScreen }) {
   const [gamePreview, setGamePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -462,6 +486,26 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, joinGame, se
             )}
             <div className="text-right text-xs text-slate-500 mt-1">
               {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
+            </div>
+          </div>
+
+          {/* Emoji Picker */}
+          <div>
+            <label className="block text-sm text-slate-300 mb-2">Choose your avatar</label>
+            <div className="flex flex-wrap gap-2">
+              {PLAYER_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => setPlayerEmoji(emoji)}
+                  className={`w-10 h-10 text-xl rounded-lg transition-all ${
+                    playerEmoji === emoji
+                      ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110'
+                      : 'bg-slate-700/50 border border-slate-600 hover:border-slate-500'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -656,6 +700,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
               <div className="space-y-2">
                 {team1.map(player => (
                   <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span className="text-lg">{player.emoji || '😀'}</span>
                     {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                     {player.name}
                   </div>
@@ -675,6 +720,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
               <div className="space-y-2">
                 {team2.map(player => (
                   <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span className="text-lg">{player.emoji || '😀'}</span>
                     {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                     {player.name}
                   </div>
@@ -696,6 +742,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
             <div className="grid grid-cols-2 gap-2">
               {gameState.players.map(player => (
                 <div key={player.id} className="bg-slate-700/50 px-4 py-2 rounded-lg flex items-center gap-2">
+                  <span className="text-lg">{player.emoji || '😀'}</span>
                   {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
                   {player.name}
                 </div>
@@ -797,6 +844,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                     className="flex items-center justify-between px-4 py-2 hover:bg-slate-700/30"
                   >
                     <div className="flex items-center gap-2">
+                      <span className="text-sm">{player.emoji || '😀'}</span>
                       <div className={`w-2 h-2 rounded-full ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
                       {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400" />}
                       <span className={`text-sm ${player.connected === false ? 'text-slate-500' : ''}`}>
@@ -815,7 +863,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                           className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
                           title="Make describer"
                         >
-                          <Mic className="w-3 h-3 text-cyan-400" />
+                          <MicVocal className="w-3 h-3 text-cyan-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
@@ -1471,11 +1519,7 @@ function AnimatedScore({ value, duration = 1500 }) {
 }
 
 // Generate player avatar with initials
-function PlayerAvatar({ name, size = 'md', highlight = false }) {
-  const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
+function PlayerAvatar({ name, emoji, size = 'md', highlight = false }) {
   const getColorFromName = (name) => {
     const colors = [
       'from-cyan-400 to-blue-500',
@@ -1493,15 +1537,15 @@ function PlayerAvatar({ name, size = 'md', highlight = false }) {
   };
 
   const sizeClasses = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-12 h-12 text-sm',
-    lg: 'w-16 h-16 text-lg',
-    xl: 'w-20 h-20 text-xl'
+    sm: 'w-8 h-8 text-sm',
+    md: 'w-12 h-12 text-xl',
+    lg: 'w-16 h-16 text-2xl',
+    xl: 'w-20 h-20 text-3xl'
   };
 
   return (
     <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${getColorFromName(name)} flex items-center justify-center font-bold text-white shadow-lg ${highlight ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''}`}>
-      {getInitials(name)}
+      {emoji || '😀'}
     </div>
   );
 }
@@ -1613,7 +1657,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
             </p>
           ) : (
             <div className="flex items-center justify-center gap-3">
-              <PlayerAvatar name={winner?.name || 'Winner'} size="lg" highlight />
+              <PlayerAvatar name={winner?.name || 'Winner'} emoji={winner?.emoji} size="lg" highlight />
               <p className="text-2xl md:text-3xl text-cyan-300">{winner?.name} wins!</p>
             </div>
           )}
@@ -1674,7 +1718,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
           <div className="flex items-end justify-center gap-2 md:gap-4 h-48">
             {/* 2nd Place */}
             <div className="flex flex-col items-center">
-              <PlayerAvatar name={sortedPlayers[1]?.name || ''} size="md" />
+              <PlayerAvatar name={sortedPlayers[1]?.name || ''} emoji={sortedPlayers[1]?.emoji} size="md" />
               <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[1]?.name}</p>
               <div className="bg-gradient-to-t from-slate-400/40 to-slate-300/20 border border-slate-400/50 rounded-t-lg w-20 md:w-24 h-24 flex flex-col items-center justify-center mt-2">
                 <span className="text-3xl">🥈</span>
@@ -1684,7 +1728,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
             {/* 1st Place */}
             <div className="flex flex-col items-center">
               <div className="relative">
-                <PlayerAvatar name={sortedPlayers[0]?.name || ''} size="lg" highlight />
+                <PlayerAvatar name={sortedPlayers[0]?.name || ''} emoji={sortedPlayers[0]?.emoji} size="lg" highlight />
                 <div className="absolute -top-2 -right-2 text-2xl animate-bounce">👑</div>
               </div>
               <p className="text-sm font-semibold mt-2 text-amber-300 truncate max-w-[80px]">{sortedPlayers[0]?.name}</p>
@@ -1695,7 +1739,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
             </div>
             {/* 3rd Place */}
             <div className="flex flex-col items-center">
-              <PlayerAvatar name={sortedPlayers[2]?.name || ''} size="md" />
+              <PlayerAvatar name={sortedPlayers[2]?.name || ''} emoji={sortedPlayers[2]?.emoji} size="md" />
               <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[2]?.name}</p>
               <div className="bg-gradient-to-t from-orange-700/40 to-orange-600/20 border border-orange-700/50 rounded-t-lg w-20 md:w-24 h-20 flex flex-col items-center justify-center mt-2">
                 <span className="text-2xl">🥉</span>
@@ -1743,7 +1787,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
                   )}
 
                   {/* Avatar */}
-                  <PlayerAvatar name={player.name} size="sm" />
+                  <PlayerAvatar name={player.name} emoji={player.emoji} size="sm" />
 
                   {/* Name and Title */}
                   <div className="flex-1 min-w-0">
@@ -1870,6 +1914,7 @@ export default function App() {
   const [screen, setScreen] = useState('home');
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
+  const [playerEmoji, setPlayerEmoji] = useState(PLAYER_EMOJIS[0]);
   const [playerId, setPlayerId] = useState('');
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
@@ -2021,7 +2066,7 @@ export default function App() {
       id: newGameId,
       host: newPlayerId,
       settings,
-      players: [{ id: newPlayerId, name: playerName, score: 0, team: settings.teamMode ? 1 : null }],
+      players: [{ id: newPlayerId, name: playerName, emoji: playerEmoji, score: 0, team: settings.teamMode ? 1 : null }],
       status: 'lobby',
       currentRound: 0,
       currentDescriber: newPlayerId,
@@ -2074,6 +2119,7 @@ export default function App() {
       if (existingPlayer) {
         // Player is reconnecting - keep their score and info
         existingPlayer.name = playerName;
+        existingPlayer.emoji = playerEmoji;
         console.log('Player reconnecting:', playerName, 'Score:', existingPlayer.score);
       } else {
         const newPlayerId = generateId();
@@ -2084,6 +2130,7 @@ export default function App() {
         game.players.push({
           id: newPlayerId,
           name: playerName,
+          emoji: playerEmoji,
           score: 0,
           team: teamAssignment
         });
@@ -2582,9 +2629,11 @@ export default function App() {
   }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
 
   if (screen === 'home') {
-    return <HomeScreen 
+    return <HomeScreen
       playerName={playerName}
       setPlayerName={setPlayerName}
+      playerEmoji={playerEmoji}
+      setPlayerEmoji={setPlayerEmoji}
       setScreen={setScreen}
       createGame={createGame}
     />;
@@ -2596,6 +2645,8 @@ export default function App() {
       setGameId={setGameId}
       playerName={playerName}
       setPlayerName={setPlayerName}
+      playerEmoji={playerEmoji}
+      setPlayerEmoji={setPlayerEmoji}
       joinGame={joinGame}
       setScreen={setScreen}
     />;
