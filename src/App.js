@@ -90,6 +90,7 @@ function FloatingParticles() {
 function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, setScreen, createGame }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [nameError, setNameError] = useState(null);
   const [settings, setSettings] = useState({
     rounds: 3,
@@ -157,19 +158,52 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
           </div>
         </div>
 
+        {/* Emoji Picker Modal */}
+        {showEmojiPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEmojiPicker(false)} />
+            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-center mb-4 text-slate-200">Choose your avatar</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {PLAYER_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                    className={`w-14 h-14 text-3xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                      playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Card */}
         <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <div>
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={playerName}
-              onChange={handleNameChange}
-              maxLength={PLAYER_NAME_MAX_LENGTH}
-              className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
-                nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
-              }`}
-            />
+            <div className="flex gap-2">
+              {/* Emoji Picker Button */}
+              <button
+                onClick={() => setShowEmojiPicker(true)}
+                className="w-12 h-12 text-2xl bg-slate-900/50 border border-slate-600 rounded-xl hover:border-cyan-500 hover:scale-105 transition-all flex items-center justify-center"
+                title="Choose avatar"
+              >
+                {playerEmoji}
+              </button>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={playerName}
+                onChange={handleNameChange}
+                maxLength={PLAYER_NAME_MAX_LENGTH}
+                className={`flex-1 bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                  nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
+                }`}
+              />
+            </div>
             {nameError && (
               <div className="flex items-center gap-1 mt-1 text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4" />
@@ -178,26 +212,6 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
             )}
             <div className="text-right text-xs text-slate-500 mt-1">
               {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
-            </div>
-          </div>
-
-          {/* Emoji Picker */}
-          <div>
-            <label className="block text-sm text-slate-300 mb-2">Choose your avatar</label>
-            <div className="flex flex-wrap gap-2">
-              {PLAYER_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setPlayerEmoji(emoji)}
-                  className={`w-10 h-10 text-xl rounded-lg transition-all ${
-                    playerEmoji === emoji
-                      ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110'
-                      : 'bg-slate-700/50 border border-slate-600 hover:border-slate-500'
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -395,6 +409,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleNameChange = (e) => {
     const sanitized = sanitizePlayerName(e.target.value);
@@ -466,18 +481,51 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
           <p className="text-slate-300">Enter game code to join</p>
         </div>
 
+        {/* Emoji Picker Modal */}
+        {showEmojiPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEmojiPicker(false)} />
+            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-center mb-4 text-slate-200">Choose your avatar</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {PLAYER_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                    className={`w-14 h-14 text-3xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                      playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <div>
-            <input
-              type="text"
-              placeholder="Your name"
-              value={playerName}
-              onChange={handleNameChange}
-              maxLength={PLAYER_NAME_MAX_LENGTH}
-              className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
-                nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
-              }`}
-            />
+            <div className="flex gap-2">
+              {/* Emoji Picker Button */}
+              <button
+                onClick={() => setShowEmojiPicker(true)}
+                className="w-12 h-12 text-2xl bg-slate-900/50 border border-slate-600 rounded-xl hover:border-cyan-500 hover:scale-105 transition-all flex items-center justify-center"
+                title="Choose avatar"
+              >
+                {playerEmoji}
+              </button>
+              <input
+                type="text"
+                placeholder="Your name"
+                value={playerName}
+                onChange={handleNameChange}
+                maxLength={PLAYER_NAME_MAX_LENGTH}
+                className={`flex-1 bg-slate-900/50 border rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
+                  nameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-cyan-500'
+                }`}
+              />
+            </div>
             {nameError && (
               <div className="flex items-center gap-1 mt-1 text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4" />
@@ -486,26 +534,6 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
             )}
             <div className="text-right text-xs text-slate-500 mt-1">
               {playerName.length}/{PLAYER_NAME_MAX_LENGTH}
-            </div>
-          </div>
-
-          {/* Emoji Picker */}
-          <div>
-            <label className="block text-sm text-slate-300 mb-2">Choose your avatar</label>
-            <div className="flex flex-wrap gap-2">
-              {PLAYER_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setPlayerEmoji(emoji)}
-                  className={`w-10 h-10 text-xl rounded-lg transition-all ${
-                    playerEmoji === emoji
-                      ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110'
-                      : 'bg-slate-700/50 border border-slate-600 hover:border-slate-500'
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
             </div>
           </div>
 
