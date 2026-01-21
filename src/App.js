@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, Volume2, VolumeX, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, Mic, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
@@ -22,7 +22,7 @@ const validatePlayerName = (name) => {
   }
 
   // Only allow alphanumeric, spaces, and basic punctuation
-  const validPattern = /^[a-zA-Z0-9\s\-_\.]+$/;
+  const validPattern = /^[a-zA-Z0-9\s\-_.]+$/;
   if (!validPattern.test(trimmed)) {
     return { valid: false, error: 'Name can only contain letters, numbers, spaces, hyphens, underscores, and periods' };
   }
@@ -2565,13 +2565,15 @@ export default function App() {
     if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && isHost) {
       endRound();
     }
-  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost, endRound]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost]);
 
   // Handle transition from last round break to finished state
   useEffect(() => {
     if (gameState?.isLastRoundBreak && breakTimeRemaining === 0 && isHost) {
       updateGame({ status: 'finished', isLastRoundBreak: false });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
 
   if (screen === 'home') {
