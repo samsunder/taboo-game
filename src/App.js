@@ -2097,11 +2097,13 @@ function App() {
     if (gameParam) {
       setGameId(gameParam);
 
-      // Check if player is already in the game (refreshed mid-game)
-      if (savedPlayerId) {
-        window.storage.get(`game:${gameParam}`, true).then(result => {
-          if (result) {
-            const game = JSON.parse(result.value);
+      // Check if game exists and if player is already in it
+      window.storage.get(`game:${gameParam}`, true).then(result => {
+        if (result) {
+          const game = JSON.parse(result.value);
+
+          // Check if saved player is in this game
+          if (savedPlayerId) {
             const existingPlayer = game.players.find(p => p.id === savedPlayerId);
 
             if (existingPlayer) {
@@ -2120,14 +2122,22 @@ function App() {
               return;
             }
           }
-          // Player not in game - show join screen
+          // Game exists but player not in it - show join screen
           setScreen('join');
-        }).catch(() => {
-          setScreen('join');
-        });
-      } else {
-        setScreen('join');
-      }
+        } else {
+          // Game doesn't exist - clear URL and show home with message
+          console.log('Game not found, redirecting to home');
+          window.history.replaceState({}, '', window.location.pathname);
+          setGameId('');
+          alert('This game no longer exists. It may have expired or been deleted.');
+          setScreen('home');
+        }
+      }).catch(() => {
+        // Error fetching game - clear URL and show home
+        window.history.replaceState({}, '', window.location.pathname);
+        setGameId('');
+        setScreen('home');
+      });
     }
   }, []);
 
