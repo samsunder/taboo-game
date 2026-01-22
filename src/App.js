@@ -2102,6 +2102,17 @@ function App() {
         if (result) {
           const game = JSON.parse(result.value);
 
+          // Check if game is stale/corrupted (no players or no host)
+          const isStaleGame = !game.players || game.players.length === 0 || !game.host;
+          if (isStaleGame) {
+            console.log('Stale game detected, redirecting to home');
+            window.history.replaceState({}, '', window.location.pathname);
+            setGameId('');
+            alert('This game session has expired. Please create or join a new game.');
+            setScreen('home');
+            return;
+          }
+
           // Check if saved player is in this game
           if (savedPlayerId) {
             const existingPlayer = game.players.find(p => p.id === savedPlayerId);
