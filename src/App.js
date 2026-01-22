@@ -2247,6 +2247,10 @@ function App() {
       setGameState(game);
       setScreen('lobby');
 
+      // Update URL to include game ID so refresh works
+      const newUrl = `${window.location.origin}${window.location.pathname}?game=${newGameId}`;
+      window.history.replaceState({ gameId: newGameId }, '', newUrl);
+
       // Run cleanup in background (don't await)
       firebaseStorage.cleanupOldGames();
     } catch (err) {
