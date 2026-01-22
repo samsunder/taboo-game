@@ -1296,7 +1296,12 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
               {gameState.words.map((wordObj, idx) => {
                 const guessInfo = gameState.guesses.find(g => g.word === wordObj.word);
                 const wasGuessed = !!guessInfo;
-                const isLongWord = wordObj.word.length > 12;
+                const wordLen = wordObj.word.length;
+                // More granular font sizing based on word length
+                const fontSizeClass = wordLen > 14 ? 'text-[0.5rem] sm:text-[0.6rem]'
+                  : wordLen > 11 ? 'text-[0.6rem] sm:text-[0.7rem]'
+                  : wordLen > 8 ? 'text-[0.7rem] sm:text-xs'
+                  : 'text-xs sm:text-sm';
                 return (
                   <div
                     key={idx}
@@ -1307,7 +1312,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     }`}
                   >
                     <div
-                      className={`font-bold break-all leading-tight min-h-[2.5em] flex items-center justify-center ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'} ${isLongWord ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm'}`}
+                      className={`font-bold leading-tight min-h-[2.5em] flex items-center justify-center ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'} ${fontSizeClass}`}
+                      style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                     >
                       {wordObj.word}
                     </div>
