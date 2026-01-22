@@ -1282,17 +1282,18 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
               {gameState.words.map((wordObj, idx) => {
                 const guessInfo = gameState.guesses.find(g => g.word === wordObj.word);
                 const wasGuessed = !!guessInfo;
+                const isLongWord = wordObj.word.length > 12;
                 return (
                   <div
                     key={idx}
-                    className={`p-2 sm:p-3 rounded-xl text-center transition-all ${
+                    className={`p-2 sm:p-3 rounded-xl text-center transition-all overflow-hidden ${
                       wasGuessed
                         ? 'bg-emerald-500/30 border-2 border-emerald-400/70 shadow-lg shadow-emerald-500/20'
                         : 'bg-slate-800/60 border border-slate-600/50'
                     }`}
                   >
                     <div
-                      className={`text-xs sm:text-sm font-bold break-words hyphens-auto leading-tight min-h-[2.5em] flex items-center justify-center ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'}`}
+                      className={`font-bold break-all leading-tight min-h-[2.5em] flex items-center justify-center ${wasGuessed ? 'text-emerald-100' : 'text-slate-200'} ${isLongWord ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm'}`}
                     >
                       {wordObj.word}
                     </div>
@@ -1458,6 +1459,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                     {gameState.words.map((wordObj, idx) => {
                       const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
+                      const isLongWord = wordObj.word.length > 12;
                       const pointColors = {
                         1: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/40 hover:border-emerald-400',
                         2: 'from-cyan-500/20 to-blue-600/20 border-cyan-500/40 hover:border-cyan-400',
@@ -1477,16 +1479,16 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                       return (
                         <div
                           key={idx}
-                          className={`p-2 sm:p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] ${idleOpacity} ${
+                          className={`p-2 sm:p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] overflow-hidden ${idleOpacity} ${
                             isGuessed
                               ? 'bg-slate-800/50 border-slate-600/50 opacity-40'
                               : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[3]}`
                           }`}
                         >
                           <div className="text-center">
-                            <h3 className={`text-xs sm:text-sm font-bold break-words hyphens-auto leading-tight min-h-[2.5em] flex items-center justify-center ${
+                            <h3 className={`font-bold break-all leading-tight min-h-[2.5em] flex items-center justify-center ${
                               isGuessed ? 'text-slate-400 line-through' : (textColors[wordObj.points] || 'text-white')
-                            }`}>
+                            } ${isLongWord ? 'text-[0.6rem] sm:text-xs' : 'text-xs sm:text-sm'}`}>
                               {wordObj.word}
                             </h3>
                             <div className="flex items-center justify-center gap-1 mt-1">
