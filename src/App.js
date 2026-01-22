@@ -2113,6 +2113,22 @@ function App() {
             return;
           }
 
+          // Check if all players have been offline for too long (zombie game)
+          const ZOMBIE_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+          const now = Date.now();
+          const allPlayersOfflineTooLong = game.players.every(p => {
+            if (!p.lastSeen) return true; // No lastSeen means never connected properly
+            return (now - p.lastSeen) > ZOMBIE_THRESHOLD;
+          });
+          if (allPlayersOfflineTooLong) {
+            console.log('Zombie game detected (all players offline 30+ min), redirecting to home');
+            window.history.replaceState({}, '', window.location.pathname);
+            setGameId('');
+            alert('This game session has expired. All players have been inactive for too long.');
+            setScreen('home');
+            return;
+          }
+
           // Check if saved player is in this game
           if (savedPlayerId) {
             const existingPlayer = game.players.find(p => p.id === savedPlayerId);
