@@ -42,6 +42,87 @@ const sanitizePlayerName = (name) => {
     .slice(0, PLAYER_NAME_MAX_LENGTH);
 };
 
+// Footer component with credits and privacy policy
+function Footer() {
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
+  return (
+    <>
+      <footer className="fixed bottom-0 left-0 right-0 z-40 py-3 px-4 text-center text-sm text-slate-400">
+        <div className="flex items-center justify-center gap-3">
+          <span>Made by Sam</span>
+          <span className="text-slate-600">|</span>
+          <button
+            onClick={() => setShowPrivacy(true)}
+            className="hover:text-cyan-400 transition-colors"
+          >
+            Privacy Policy
+          </button>
+        </div>
+      </footer>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacy && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowPrivacy(false)}>
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-600 sticky top-0 bg-slate-800">
+              <h2 className="text-xl font-bold text-white">Privacy Policy</h2>
+              <button onClick={() => setShowPrivacy(false)} className="p-1 hover:bg-slate-700 rounded-lg transition-colors text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4 text-slate-300">
+              <p className="text-sm">
+                <strong className="text-white">Last updated:</strong> January 2025
+              </p>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Information We Collect</h3>
+                <p className="text-sm">
+                  We collect minimal information to provide the game experience:
+                </p>
+                <ul className="text-sm list-disc list-inside mt-2 space-y-1">
+                  <li>Player name (chosen by you)</li>
+                  <li>Game session data (scores, game state)</li>
+                  <li>A randomly generated player ID stored locally</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">How We Use Your Information</h3>
+                <p className="text-sm">
+                  Your information is used solely to enable multiplayer gameplay. We do not sell, share, or use your data for advertising purposes.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Data Storage</h3>
+                <p className="text-sm">
+                  Game data is stored temporarily in Firebase for active game sessions. Player IDs are stored in your browser's local storage. No personal information is permanently retained.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Cookies</h3>
+                <p className="text-sm">
+                  We use local storage to remember your player ID and theme preference. No tracking cookies are used.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Contact</h3>
+                <p className="text-sm">
+                  For any questions about this privacy policy, please visit our website.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // Floating background particles component
 function FloatingParticles() {
   return (
@@ -1938,7 +2019,7 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
   );
 }
 
-export default function App() {
+function App() {
   const [screen, setScreen] = useState('home');
   const [gameId, setGameId] = useState('');
   const [playerName, setPlayerName] = useState('');
@@ -2715,4 +2796,17 @@ export default function App() {
 
   return null;
 }
+
+// Wrapped App with Footer
+function AppWithFooter() {
+  return (
+    <>
+      <App />
+      <Footer />
+    </>
+  );
+}
+
+export { App };
+export default AppWithFooter;
         
