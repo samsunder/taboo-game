@@ -2298,9 +2298,15 @@ function App() {
       setGameState(game);
       setScreen('lobby');
 
-      // Update URL to include game ID so refresh works
-      const newUrl = `${window.location.origin}${window.location.pathname}?game=${newGameId}`;
-      window.history.replaceState({ gameId: newGameId }, '', newUrl);
+      // Update URL to include game ID so refresh works (delayed for Safari compatibility)
+      setTimeout(() => {
+        try {
+          const newUrl = `${window.location.origin}${window.location.pathname}?game=${newGameId}`;
+          window.history.replaceState({ gameId: newGameId }, '', newUrl);
+        } catch (e) {
+          console.warn('Could not update URL:', e);
+        }
+      }, 100);
 
       // Run cleanup in background (don't await)
       firebaseStorage.cleanupOldGames();
@@ -2356,9 +2362,15 @@ function App() {
 
       setGameState(game);
 
-      // Update URL to include game ID so refresh works
-      const newUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
-      window.history.replaceState({ gameId }, '', newUrl);
+      // Update URL to include game ID so refresh works (delayed for Safari compatibility)
+      setTimeout(() => {
+        try {
+          const newUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
+          window.history.replaceState({ gameId }, '', newUrl);
+        } catch (e) {
+          console.warn('Could not update URL:', e);
+        }
+      }, 100);
 
       // Auto-switch to the correct screen based on game status
       if (game.status === 'playing') {
