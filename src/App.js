@@ -888,7 +888,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
   );
 }
 
-function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber }) {
+function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -973,6 +973,15 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                           title="Make describer"
                         >
                           <MicVocal className="w-3 h-3 text-cyan-400" />
+                        </button>
+                      )}
+                      {isHost && player.id !== playerId && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); transferHost(player.id); }}
+                          className="p-1 hover:bg-amber-500/30 rounded transition-colors"
+                          title="Transfer host"
+                        >
+                          <Crown className="w-3 h-3 text-amber-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
@@ -1067,9 +1076,19 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
   if (!gameState || gameState.status === 'finished') {
-    return <ResultsScreen gameState={gameState} isHost={isHost} leaveGame={leaveGame} restartGame={restartGame} />;
+    return <ResultsScreen
+      gameState={gameState}
+      playerId={playerId}
+      isHost={isHost}
+      leaveGame={leaveGame}
+      restartGame={restartGame}
+      logoutPlayer={logoutPlayer}
+      copyGameLink={copyGameLink}
+      kickPlayer={kickPlayer}
+      transferHost={transferHost}
+    />;
   }
 
   const player = gameState.players.find(p => p.id === playerId);
@@ -1195,41 +1214,49 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                       Need 2+ players to continue
                     </div>
                   )}
-                  {/* Describer offline - Host controls */}
+                  {/* Describer offline warning */}
                   {isDescriberOffline && !isDescriber && gameState.players.length >= 2 && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                      <p className="text-red-400 text-sm mb-2">
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-2">
+                      <p className="text-red-400 text-sm">
                         <span className="font-semibold">{describer?.name}</span> appears to be offline.
+                        {!isHost && ' Waiting for host to assign a new describer...'}
                       </p>
-                      {isHost && availableDescribers.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-xs text-slate-400 w-full">Assign new describer:</span>
-                          {availableDescribers.map(p => (
-                            <button
-                              key={p.id}
-                              onClick={() => promoteDescriber(p.id)}
-                              className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
-                            >
-                              <Mic className="w-3 h-3" />
-                              {p.name}
-                            </button>
-                          ))}
-                        </div>
-                      ) : isHost && availableDescribers.length === 0 ? (
-                        <p className="text-amber-400 text-xs">
-                          No other online players available. Waiting for players to reconnect...
-                        </p>
-                      ) : (
-                        <p className="text-slate-400 text-xs">
-                          Waiting for host to assign a new describer...
-                        </p>
-                      )}
                     </div>
                   )}
-                  {/* Normal waiting state */}
-                  {!isDescriberOffline && (!isDescriber || breakTimeRemaining > 0) && gameState.players.length >= 2 && (
+                  {/* Host controls - always show during break when not the describer */}
+                  {isHost && !isDescriber && availableDescribers.length > 0 && gameState.players.length >= 2 && (
+                    <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-3">
+                      <span className="text-xs text-slate-400 block mb-2">Assign describer:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {availableDescribers.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => promoteDescriber(p.id)}
+                            className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
+                          >
+                            <Mic className="w-3 h-3" />
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Host but no available describers */}
+                  {isHost && !isDescriber && availableDescribers.length === 0 && gameState.players.length >= 2 && (
+                    <p className="text-amber-400 text-xs px-4 py-2">
+                      No other online players available to assign.
+                    </p>
+                  )}
+                  {/* Normal waiting state for non-hosts */}
+                  {!isHost && !isDescriberOffline && !isDescriber && gameState.players.length >= 2 && (
                     <div className="text-slate-400 text-sm px-4 py-2">
-                      {isDescriber ? 'Get ready to describe!' : `Waiting for ${describer?.name}...`}
+                      Waiting for {describer?.name}...
+                    </div>
+                  )}
+                  {/* Describer waiting state */}
+                  {isDescriber && breakTimeRemaining > 0 && gameState.players.length >= 2 && (
+                    <div className="text-slate-400 text-sm px-4 py-2">
+                      Get ready to describe!
                     </div>
                   )}
                 </div>
@@ -1388,6 +1415,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             copyGameLink={copyGameLink}
             kickPlayer={kickPlayer}
             promoteDescriber={promoteDescriber}
+            transferHost={transferHost}
           />
         </div>
 
@@ -1676,7 +1704,7 @@ function getPlayerTitle(player, allPlayers, submissions, isWinner) {
   return { title: 'Player', icon: '🎮', color: 'text-slate-400' };
 }
 
-function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
+function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, logoutPlayer, copyGameLink, kickPlayer, transferHost }) {
   const [showSettings, setShowSettings] = useState(false);
   const [newSettings, setNewSettings] = useState(gameState?.settings || { rounds: 3, roundTime: 60, difficulty: 'mixed', teamMode: false });
   const [showConfetti, setShowConfetti] = useState(true);
@@ -1749,6 +1777,20 @@ function ResultsScreen({ gameState, isHost, leaveGame, restartGame }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 overflow-hidden">
       {/* Confetti Animation */}
       {showConfetti && <Confetti />}
+
+      {/* Menu in top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <GameMenu
+          gameState={gameState}
+          playerId={playerId}
+          isHost={isHost}
+          logoutPlayer={logoutPlayer}
+          copyGameLink={copyGameLink}
+          kickPlayer={kickPlayer}
+          promoteDescriber={() => {}} // Not needed in results screen
+          transferHost={transferHost}
+        />
+      </div>
 
       <div className="max-w-4xl w-full space-y-6 relative z-10">
         {/* Winner Announcement with Animated Trophy */}
@@ -2129,7 +2171,7 @@ function App() {
     if (!gameId || !playerId || (screen !== 'game' && screen !== 'lobby')) return;
 
     const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
-    const DISCONNECT_THRESHOLD = 15000; // Consider disconnected after 15 seconds
+    const DISCONNECT_THRESHOLD = 20000; // Consider disconnected after 20 seconds
 
     const sendHeartbeat = async () => {
       try {
@@ -2150,7 +2192,19 @@ function App() {
           return { ...p, connected: isConnected };
         });
 
-        await window.storage.set(`game:${gameId}`, JSON.stringify({ ...game, players: updatedPlayers }), true);
+        // Auto-transfer host if current host has been disconnected for 60 seconds
+        const HOST_DISCONNECT_THRESHOLD = 60000;
+        let newHost = game.host;
+        const currentHost = updatedPlayers.find(p => p.id === game.host);
+        if (currentHost && currentHost.lastSeen && (now - currentHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
+          const newHostPlayer = updatedPlayers.find(p => p.connected === true);
+          if (newHostPlayer && newHostPlayer.id !== game.host) {
+            newHost = newHostPlayer.id;
+            console.log('Host disconnected for 60s, auto-transferring to:', newHostPlayer.name);
+          }
+        }
+
+        await window.storage.set(`game:${gameId}`, JSON.stringify({ ...game, players: updatedPlayers, host: newHost }), true);
       } catch (err) {
         console.error('Heartbeat error:', err);
       }
@@ -2711,6 +2765,22 @@ function App() {
     }
   };
 
+  const transferHost = async (newHostId) => {
+    if (!gameState || !isHost) return;
+
+    if (!window.confirm('Are you sure you want to transfer host to this player?')) return;
+
+    try {
+      await updateGame({
+        host: newHostId
+      });
+      console.log('Host transferred successfully');
+    } catch (err) {
+      console.error('Transfer host error:', err);
+      alert('Failed to transfer host: ' + err.message);
+    }
+  };
+
   const isHost = gameState?.host === playerId;
   const isDescriber = gameState?.currentDescriber === playerId;
 
@@ -2791,6 +2861,7 @@ function App() {
       copyGameLink={copyGameLink}
       kickPlayer={kickPlayer}
       promoteDescriber={promoteDescriber}
+      transferHost={transferHost}
     />;
   }
 
