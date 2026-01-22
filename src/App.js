@@ -42,87 +42,6 @@ const sanitizePlayerName = (name) => {
     .slice(0, PLAYER_NAME_MAX_LENGTH);
 };
 
-// Footer component with credits and privacy policy
-function Footer() {
-  const [showPrivacy, setShowPrivacy] = useState(false);
-
-  return (
-    <>
-      <footer className="fixed bottom-0 left-0 right-0 z-40 py-3 px-4 text-center text-sm text-slate-400">
-        <div className="flex items-center justify-center gap-3">
-          <span>Made by Sam</span>
-          <span className="text-slate-600">|</span>
-          <button
-            onClick={() => setShowPrivacy(true)}
-            className="hover:text-cyan-400 transition-colors"
-          >
-            Privacy Policy
-          </button>
-        </div>
-      </footer>
-
-      {/* Privacy Policy Modal */}
-      {showPrivacy && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowPrivacy(false)}>
-          <div className="bg-slate-800 border border-slate-600 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-600 sticky top-0 bg-slate-800">
-              <h2 className="text-xl font-bold text-white">Privacy Policy</h2>
-              <button onClick={() => setShowPrivacy(false)} className="p-1 hover:bg-slate-700 rounded-lg transition-colors text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-4 text-slate-300">
-              <p className="text-sm">
-                <strong className="text-white">Last updated:</strong> January 2025
-              </p>
-
-              <div>
-                <h3 className="font-semibold text-cyan-400 mb-2">Information We Collect</h3>
-                <p className="text-sm">
-                  We collect minimal information to provide the game experience:
-                </p>
-                <ul className="text-sm list-disc list-inside mt-2 space-y-1">
-                  <li>Player name (chosen by you)</li>
-                  <li>Game session data (scores, game state)</li>
-                  <li>A randomly generated player ID stored locally</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-cyan-400 mb-2">How We Use Your Information</h3>
-                <p className="text-sm">
-                  Your information is used solely to enable multiplayer gameplay. We do not sell, share, or use your data for advertising purposes.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-cyan-400 mb-2">Data Storage</h3>
-                <p className="text-sm">
-                  Game data is stored temporarily in Firebase for active game sessions. Player IDs are stored in your browser's local storage. No personal information is permanently retained.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-cyan-400 mb-2">Cookies</h3>
-                <p className="text-sm">
-                  We use local storage to remember your player ID and theme preference. No tracking cookies are used.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-cyan-400 mb-2">Contact</h3>
-                <p className="text-sm">
-                  For any questions about this privacy policy, please visit our website.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 // Floating background particles component
 function FloatingParticles() {
   return (
@@ -171,6 +90,7 @@ function FloatingParticles() {
 function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, setScreen, createGame }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [nameError, setNameError] = useState(null);
   const [settings, setSettings] = useState({
@@ -375,11 +295,25 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
         {/* How to Play Button */}
         <button
           onClick={() => setShowHowToPlay(true)}
-          className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors py-2"
+          className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors py-4 min-h-[48px]"
         >
-          <BookOpen className="w-4 h-4" />
-          How to Play
+          <BookOpen className="w-5 h-5" />
+          <span className="text-base">How to Play</span>
         </button>
+
+        {/* Footer - only on home screen */}
+        <div className="mt-6 pt-4 border-t border-slate-700/50 text-center text-sm text-slate-500">
+          <div className="flex items-center justify-center gap-3">
+            <span>Made by Sam</span>
+            <span className="text-slate-600">|</span>
+            <button
+              onClick={() => setShowPrivacy(true)}
+              className="hover:text-cyan-400 transition-colors"
+            >
+              Privacy Policy
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* How to Play Modal */}
@@ -476,6 +410,65 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
                     Higher difficulty = bigger risk, bigger reward
                   </li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {showPrivacy && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowPrivacy(false)}>
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-600 sticky top-0 bg-slate-800">
+              <h2 className="text-xl font-bold text-white">Privacy Policy</h2>
+              <button onClick={() => setShowPrivacy(false)} className="p-1 hover:bg-slate-700 rounded-lg transition-colors text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4 text-slate-300">
+              <p className="text-sm">
+                <strong className="text-white">Last updated:</strong> January 2025
+              </p>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Information We Collect</h3>
+                <p className="text-sm">
+                  We collect minimal information to provide the game experience:
+                </p>
+                <ul className="text-sm list-disc list-inside mt-2 space-y-1">
+                  <li>Player name (chosen by you)</li>
+                  <li>Game session data (scores, game state)</li>
+                  <li>A randomly generated player ID stored locally</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">How We Use Your Information</h3>
+                <p className="text-sm">
+                  Your information is used solely to enable multiplayer gameplay. We do not sell, share, or use your data for advertising purposes.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Data Storage</h3>
+                <p className="text-sm">
+                  Game data is stored temporarily in Firebase for active game sessions. Player IDs are stored in your browser's local storage. No personal information is permanently retained.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Cookies</h3>
+                <p className="text-sm">
+                  We use local storage to remember your player ID and theme preference. No tracking cookies are used.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-cyan-400 mb-2">Contact</h3>
+                <p className="text-sm">
+                  For any questions about this privacy policy, please visit our website.
+                </p>
               </div>
             </div>
           </div>
@@ -920,7 +913,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 w-auto sm:w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto">
           {/* Player Info Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border-b border-slate-600">
             <div className="flex items-center gap-2">
@@ -946,51 +939,51 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
             </button>
 
             {showPlayers && (
-              <div className="bg-slate-900/50 max-h-48 overflow-y-auto">
+              <div className="bg-slate-900/50 max-h-48 sm:max-h-48 overflow-y-auto">
                 {gameState?.players?.map(player => (
                   <div
                     key={player.id}
-                    className="flex items-center justify-between px-4 py-2 hover:bg-slate-700/30"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-2 hover:bg-slate-700/30 gap-1 sm:gap-0"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-sm">{player.emoji || '😀'}</span>
-                      <div className={`w-2 h-2 rounded-full ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                      {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400" />}
-                      <span className={`text-sm ${player.connected === false ? 'text-slate-500' : ''}`}>
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                      <span className={`text-sm truncate ${player.connected === false ? 'text-slate-500' : ''}`}>
                         {player.name}
                         {player.id === playerId && ' (You)'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-6 sm:ml-0">
                       <span className="text-xs text-amber-400">{player.score}pts</span>
                       {player.id === gameState.currentDescriber && (
-                        <Mic className="w-3 h-3 text-cyan-400" title="Current describer" />
+                        <Mic className="w-3 h-3 text-cyan-400 flex-shrink-0" title="Current describer" />
                       )}
                       {isHost && player.id !== playerId && player.id !== gameState.currentDescriber && (
                         <button
                           onClick={(e) => { e.stopPropagation(); promoteDescriber(player.id); }}
-                          className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                          className="p-1.5 hover:bg-cyan-500/30 rounded transition-colors"
                           title="Make describer"
                         >
-                          <MicVocal className="w-3 h-3 text-cyan-400" />
+                          <MicVocal className="w-4 h-4 sm:w-3 sm:h-3 text-cyan-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
                         <button
                           onClick={(e) => { e.stopPropagation(); transferHost(player.id); }}
-                          className="p-1 hover:bg-amber-500/30 rounded transition-colors"
+                          className="p-1.5 hover:bg-amber-500/30 rounded transition-colors"
                           title="Transfer host"
                         >
-                          <Crown className="w-3 h-3 text-amber-400" />
+                          <Crown className="w-4 h-4 sm:w-3 sm:h-3 text-amber-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
                         <button
                           onClick={(e) => { e.stopPropagation(); kickPlayer(player.id); }}
-                          className="p-1 hover:bg-red-500/30 rounded transition-colors"
+                          className="p-1.5 hover:bg-red-500/30 rounded transition-colors"
                           title="Kick player"
                         >
-                          <UserX className="w-3 h-3 text-red-400" />
+                          <UserX className="w-4 h-4 sm:w-3 sm:h-3 text-red-400" />
                         </button>
                       )}
                     </div>
@@ -2171,7 +2164,7 @@ function App() {
     if (!gameId || !playerId || (screen !== 'game' && screen !== 'lobby')) return;
 
     const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
-    const DISCONNECT_THRESHOLD = 20000; // Consider disconnected after 20 seconds
+    const DISCONNECT_THRESHOLD = 16000; // Consider disconnected after 16 seconds
 
     const sendHeartbeat = async () => {
       try {
@@ -2305,6 +2298,10 @@ function App() {
       await window.storage.set(`game:${gameId}`, JSON.stringify(game), true);
 
       setGameState(game);
+
+      // Update URL to include game ID so refresh works
+      const newUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
+      window.history.replaceState({ gameId }, '', newUrl);
 
       // Auto-switch to the correct screen based on game status
       if (game.status === 'playing') {
@@ -2868,16 +2865,6 @@ function App() {
   return null;
 }
 
-// Wrapped App with Footer
-function AppWithFooter() {
-  return (
-    <>
-      <App />
-      <Footer />
-    </>
-  );
-}
-
 export { App };
-export default AppWithFooter;
+export default App;
         
