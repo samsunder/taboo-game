@@ -1069,7 +1069,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1106,8 +1106,58 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   const team1Score = team1Players.reduce((sum, p) => sum + p.score, 0);
   const team2Score = team2Players.reduce((sum, p) => sum + p.score, 0);
 
+  // Check if we're in restart countdown period
+  const isRestartCountdown = gameState.restartCountdownEnd && !gameState.roundStartTime;
+
   // Check if we're in break period
   const isBreak = gameState.breakEndTime && !gameState.roundStartTime;
+
+  // Show restart countdown screen
+  if (isRestartCountdown) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 flex items-center justify-center">
+        <div className="text-center space-y-8">
+          {/* Animated countdown circle */}
+          <div className="relative inline-flex items-center justify-center">
+            <div className="w-40 h-40 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-600/20 border-4 border-emerald-500/50 flex items-center justify-center animate-pulse">
+              <span className="text-7xl font-bold text-emerald-400">
+                {restartCountdownRemaining}
+              </span>
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent">
+              Get Ready!
+            </h1>
+            <p className="text-slate-400 mt-2 text-lg">New game starting...</p>
+          </div>
+
+          {/* First describer info */}
+          <div className="bg-slate-800/50 backdrop-blur-md rounded-xl p-4 border border-slate-700 inline-block">
+            <p className="text-slate-400 text-sm">First to describe</p>
+            <p className="text-xl font-bold text-cyan-300">
+              {describer?.emoji} {describer?.name}
+              {isDescriber && <span className="text-amber-400 text-sm ml-2">(You)</span>}
+            </p>
+            {isTeamMode && (
+              <span className={`text-xs px-2 py-1 rounded mt-1 inline-block ${currentPlayingTeam === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                Team {currentPlayingTeam}
+              </span>
+            )}
+          </div>
+
+          {/* Sparkle decoration */}
+          <div className="flex justify-center gap-2">
+            <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+            <Sparkles className="w-6 h-6 text-emerald-400 animate-pulse" style={{ animationDelay: '0.2s' }} />
+            <Sparkles className="w-6 h-6 text-cyan-400 animate-pulse" style={{ animationDelay: '0.4s' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show break screen
   if (isBreak) {
@@ -2757,6 +2807,7 @@ function App() {
         }
       }
 
+      // Set up countdown before game starts (5 seconds)
       await updateGame({
         players: resetPlayers,
         settings: newSettings,
@@ -2766,15 +2817,16 @@ function App() {
         currentPlayingTeam,
         teamDescriberIndex,
         words,
-        roundStartTime: Date.now(),
+        roundStartTime: null, // Don't start timer yet
         roundEndTime: null,
         breakEndTime: null,
+        restartCountdownEnd: Date.now() + 5000, // 5 second countdown
         guesses: [],
         submissions: [],
         isLastRoundBreak: false
       });
 
-      console.log('Game restarted with new settings');
+      console.log('Game restart countdown started');
       setScreen('game');
     } catch (err) {
       console.error('Restart game error:', err);
@@ -2864,6 +2916,10 @@ function App() {
     ? Math.max(0, Math.floor((gameState.breakEndTime - currentTime) / 1000))
     : 0;
 
+  const restartCountdownRemaining = gameState?.restartCountdownEnd
+    ? Math.max(0, Math.floor((gameState.restartCountdownEnd - currentTime) / 1000))
+    : 0;
+
   useEffect(() => {
     if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && isHost) {
       endRound();
@@ -2878,6 +2934,17 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
+
+  // Handle restart countdown completion - start the actual game
+  useEffect(() => {
+    if (gameState?.restartCountdownEnd && restartCountdownRemaining === 0 && isHost && !gameState.roundStartTime) {
+      updateGame({
+        roundStartTime: Date.now(),
+        restartCountdownEnd: null
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restartCountdownRemaining, gameState?.restartCountdownEnd, isHost, gameState?.roundStartTime]);
 
   if (screen === 'home') {
     return <HomeScreen
@@ -2921,6 +2988,7 @@ function App() {
       isDescriber={isDescriber}
       timeRemaining={timeRemaining}
       breakTimeRemaining={breakTimeRemaining}
+      restartCountdownRemaining={restartCountdownRemaining}
       guessInput={guessInput}
       setGuessInput={setGuessInput}
       submitGuess={submitGuess}

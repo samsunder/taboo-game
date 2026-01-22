@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get, onValue, remove } from "firebase/database";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 // Game expiry in days
 const GAME_EXPIRY_DAYS = 3;
@@ -24,6 +25,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
+
+// Initialize App Check with reCAPTCHA v3
+// This protects your Firebase resources from abuse
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider('6Lf4U1MsAAAAAHh7eJXE-if0E2ZcY6wkijpCNTNo'),
+  isTokenAutoRefreshEnabled: true
+});
 
 // Authentication state
 let currentUser = null;
