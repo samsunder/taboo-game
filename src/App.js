@@ -1125,6 +1125,20 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
+        {/* Menu in top right */}
+        <div className="fixed top-4 right-4 z-50">
+          <GameMenu
+            gameState={gameState}
+            playerId={playerId}
+            isHost={isHost}
+            logoutPlayer={logoutPlayer}
+            copyGameLink={copyGameLink}
+            kickPlayer={kickPlayer}
+            promoteDescriber={promoteDescriber}
+            transferHost={transferHost}
+          />
+        </div>
+
         <div className="max-w-4xl mx-auto space-y-5 py-6">
 
           {/* Header - Round Complete */}
