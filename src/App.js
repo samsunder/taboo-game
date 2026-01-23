@@ -105,7 +105,7 @@ function FeedbackModal({ isOpen, onClose }) {
         },
         body: JSON.stringify({
           message: feedback,
-          email: email || 'Not provided',
+          contact: email || 'Not provided',
           page: window.location.href
         })
       });
