@@ -280,6 +280,65 @@ function FloatingParticles() {
           background-size: 200% auto;
           animation: title-shimmer 4s linear infinite;
         }
+
+        @keyframes bubble-slide-left {
+          0% { transform: translateX(-100%) translateY(50%); opacity: 0; }
+          60% { transform: translateX(10%) translateY(-5%); opacity: 1; }
+          80% { transform: translateX(-5%) translateY(2%); opacity: 1; }
+          100% { transform: translateX(0) translateY(0); opacity: 1; }
+        }
+        @keyframes bubble-slide-right {
+          0% { transform: translateX(100%) translateY(50%); opacity: 0; }
+          60% { transform: translateX(-10%) translateY(-5%); opacity: 1; }
+          80% { transform: translateX(5%) translateY(2%); opacity: 1; }
+          100% { transform: translateX(0) translateY(0); opacity: 1; }
+        }
+        @keyframes bubble-content-pop {
+          0% { transform: scale(0) rotate(0deg); opacity: 0; }
+          50% { transform: scale(1.15) rotate(0deg); opacity: 1; }
+          75% { transform: scale(0.95) rotate(0deg); }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes emoji-spin {
+          0%, 70%, 100% { transform: rotateY(0deg); }
+          85% { transform: rotateY(360deg); }
+        }
+        @keyframes bubble-text-fade {
+          0% { transform: translateY(10px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes bubble-gentle-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .animate-bubble-left {
+          animation: bubble-slide-left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                     bubble-gentle-float 4s ease-in-out 1.2s infinite;
+        }
+        .animate-bubble-right {
+          animation: bubble-slide-right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards,
+                     bubble-gentle-float 4s ease-in-out 1.4s infinite;
+        }
+        .animate-content-pop {
+          opacity: 0;
+          display: inline-block;
+          animation: bubble-content-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s forwards,
+                     emoji-spin 3s ease-in-out 1.5s infinite;
+        }
+        .animate-content-pop-delayed {
+          opacity: 0;
+          display: inline-block;
+          animation: bubble-content-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s forwards,
+                     emoji-spin 3s ease-in-out 1.7s infinite;
+        }
+        .animate-text-fade {
+          opacity: 0;
+          animation: bubble-text-fade 0.4s ease-out 0.9s forwards;
+        }
+        .animate-text-fade-delayed {
+          opacity: 0;
+          animation: bubble-text-fade 0.4s ease-out 1.1s forwards;
+        }
       `}</style>
     </div>
   );
@@ -326,8 +385,56 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white flex items-center justify-center p-4 relative overflow-hidden">
       <FloatingParticles />
+
+      {/* Speech Bubble - Bottom Left */}
+      <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 pointer-events-none z-0 animate-bubble-left" style={{ opacity: 0 }}>
+        <div className="relative">
+          <svg width="180" height="140" viewBox="0 0 180 140" className="w-44 h-36 md:w-52 md:h-40">
+            <defs>
+              <linearGradient id="bubbleGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgb(6 182 212 / 0.3)" />
+                <stop offset="100%" stopColor="rgb(20 184 166 / 0.3)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M15,5 L165,5 Q175,5 175,15 L175,100 Q175,110 165,110 L40,110 L12,135 L22,110 L15,110 Q5,110 5,100 L5,15 Q5,5 15,5 Z"
+              fill="url(#bubbleGradientLeft)"
+              stroke="rgb(6 182 212 / 0.5)"
+              strokeWidth="1.5"
+            />
+          </svg>
+          <div className="absolute top-0 left-0 w-44 h-32 md:w-52 md:h-36 flex flex-col items-center justify-center px-2">
+            <span className="text-2xl md:text-3xl mb-1 animate-content-pop">🤔</span>
+            <span className="text-[10px] md:text-xs font-semibold text-cyan-300 tracking-wide text-center leading-tight animate-text-fade">Think fast. Speak smart.<br/>Slip up? You lose.</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Speech Bubble - Bottom Right */}
+      <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 pointer-events-none z-0 animate-bubble-right" style={{ opacity: 0 }}>
+        <div className="relative">
+          <svg width="170" height="140" viewBox="0 0 170 140" className="w-40 h-36 md:w-48 md:h-40">
+            <defs>
+              <linearGradient id="bubbleGradientRight" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="rgb(20 184 166 / 0.3)" />
+                <stop offset="100%" stopColor="rgb(6 182 212 / 0.3)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M15,5 L155,5 Q165,5 165,15 L165,100 Q165,110 155,110 L150,110 L158,135 L125,110 L15,110 Q5,110 5,100 L5,15 Q5,5 15,5 Z"
+              fill="url(#bubbleGradientRight)"
+              stroke="rgb(20 184 166 / 0.5)"
+              strokeWidth="1.5"
+            />
+          </svg>
+          <div className="absolute top-0 left-0 w-40 h-32 md:w-48 md:h-36 flex flex-col items-center justify-center px-2">
+            <span className="text-2xl md:text-3xl mb-1 animate-content-pop-delayed">💬</span>
+            <span className="text-[10px] md:text-xs font-semibold text-teal-300 tracking-wide text-center leading-tight animate-text-fade-delayed">Play live.<br/>Laugh louder.</span>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-md w-full space-y-6 relative z-10">
         {/* Logo and Title */}
@@ -493,7 +600,7 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
         {/* Footer - only on home screen */}
         <div className="mt-6 pt-4 border-t border-slate-700/50 text-center text-sm text-slate-500">
           <div className="flex items-center justify-center gap-3">
-            <span>Made by Sam</span>
+            <span>Made by S.S.G</span>
             <span className="text-slate-600">|</span>
             <button
               onClick={() => setShowFeedback(true)}
