@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
@@ -12,6 +12,204 @@ const PLAYER_NAME_MIN_LENGTH = 2;
 
 // Player emoji options
 const PLAYER_EMOJIS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🚀', '⭐', '🎮', '🎯', '🔥'];
+
+// Custom Dropdown Component
+function CustomDropdown({ value, onChange, options, label }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative">
+      {label && <label className="block text-sm text-slate-300 mb-2">{label}</label>}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-slate-800/80 border border-slate-600 rounded-xl px-4 py-3 text-white flex items-center justify-between hover:border-cyan-500/50 transition-colors"
+      >
+        <span>{selectedOption?.label || 'Select...'}</span>
+        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-700/80 transition-colors ${
+                  value === option.value ? 'bg-cyan-500/20 text-cyan-300' : 'text-white'
+                }`}
+              >
+                <span>{option.label}</span>
+                {value === option.value && <Check className="w-4 h-4 text-cyan-400" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Toggle Switch Component
+function ToggleSwitch({ checked, onChange, label, badge }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-300">{label}</span>
+        {badge && (
+          <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+            {badge}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative w-14 h-8 rounded-full transition-colors ${
+          checked ? 'bg-cyan-500' : 'bg-slate-600'
+        }`}
+      >
+        <div
+          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
+            checked ? 'translate-x-7' : 'translate-x-1'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+// Feedback Modal Component
+function FeedbackModal({ isOpen, onClose }) {
+  const [feedback, setFeedback] = useState('');
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('idle'); // idle, sending, success, error
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!feedback.trim()) return;
+
+    setStatus('sending');
+    try {
+      const response = await fetch('https://formspree.io/f/xgoaozqp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          message: feedback,
+          email: email || 'Not provided',
+          page: window.location.href
+        })
+      });
+
+      if (response.ok) {
+        setStatus('success');
+        setFeedback('');
+        setEmail('');
+        setTimeout(() => {
+          onClose();
+          setStatus('idle');
+        }, 2000);
+      } else {
+        setStatus('error');
+      }
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <MessageCircle className="w-5 h-5 text-cyan-400" />
+          Send Feedback
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          Help us improve! Share your thoughts, report bugs, or suggest features.
+        </p>
+
+        {status === 'success' ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-emerald-400" />
+            </div>
+            <p className="text-emerald-400 font-semibold">Thank you for your feedback!</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-slate-300 mb-2">Your Message *</label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="What's on your mind?"
+                rows={4}
+                className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none resize-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-300 mb-2">Email (optional)</label>
+              <input
+                type="text"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+              />
+              <p className="text-xs text-slate-500 mt-1">Only if you'd like us to respond</p>
+            </div>
+
+            {status === 'error' && (
+              <p className="text-red-400 text-sm">Something went wrong. Please try again.</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'sending' || !feedback.trim()}
+              className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                status === 'sending' || !feedback.trim()
+                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white'
+              }`}
+            >
+              {status === 'sending' ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send Feedback
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const validatePlayerName = (name) => {
   const trimmed = name.trim();
@@ -92,6 +290,7 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [nameError, setNameError] = useState(null);
   const [settings, setSettings] = useState({
     rounds: 3,
@@ -240,31 +439,21 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
                   className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Difficulty</label>
-                <select
-                  value={settings.difficulty}
-                  onChange={(e) => setSettings({...settings, difficulty: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                >
-                  {Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.label} {config.points ? `(${config.points} pt${config.points > 1 ? 's' : ''})` : '(All)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="teamMode"
-                  checked={settings.teamMode}
-                  onChange={(e) => setSettings({...settings, teamMode: e.target.checked})}
-                  className="w-5 h-5 accent-cyan-500"
-                />
-                <label htmlFor="teamMode" className="text-slate-300">Team Mode</label>
-                <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">Beta</span>
-              </div>
+              <CustomDropdown
+                label="Difficulty"
+                value={settings.difficulty}
+                onChange={(value) => setSettings({...settings, difficulty: value})}
+                options={Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => ({
+                  value: key,
+                  label: `${config.label} ${config.points ? `(${config.points} pts)` : '(All)'}`
+                }))}
+              />
+              <ToggleSwitch
+                label="Team Mode"
+                badge="Beta"
+                checked={settings.teamMode}
+                onChange={(checked) => setSettings({...settings, teamMode: checked})}
+              />
             </div>
           )}
 
@@ -307,6 +496,13 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
             <span>Made by Sam</span>
             <span className="text-slate-600">|</span>
             <button
+              onClick={() => setShowFeedback(true)}
+              className="hover:text-cyan-400 transition-colors"
+            >
+              Feedback
+            </button>
+            <span className="text-slate-600">|</span>
+            <button
               onClick={() => setShowPrivacy(true)}
               className="hover:text-cyan-400 transition-colors"
             >
@@ -315,6 +511,9 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
           </div>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal isOpen={showFeedback} onClose={() => setShowFeedback(false)} />
 
       {/* How to Play Modal */}
       {showHowToPlay && (
@@ -2074,20 +2273,15 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                     className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">Difficulty</label>
-                  <select
-                    value={newSettings.difficulty}
-                    onChange={(e) => setNewSettings({...newSettings, difficulty: e.target.value})}
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                  >
-                    {Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => (
-                      <option key={key} value={key}>
-                        {config.label} {config.points ? `(${config.points} pt${config.points > 1 ? 's' : ''})` : '(All)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <CustomDropdown
+                  label="Difficulty"
+                  value={newSettings.difficulty}
+                  onChange={(value) => setNewSettings({...newSettings, difficulty: value})}
+                  options={Object.entries(DIFFICULTY_CONFIG).map(([key, config]) => ({
+                    value: key,
+                    label: `${config.label} ${config.points ? `(${config.points} pts)` : '(All)'}`
+                  }))}
+                />
               </div>
             )}
 
