@@ -1401,7 +1401,9 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                             className={`px-2.5 py-1.5 rounded-lg text-sm font-medium ${
                               sub.isCorrect
                                 ? 'bg-emerald-500/30 border border-emerald-400/60 text-emerald-100'
-                                : 'bg-red-500/20 border border-red-400/40 text-red-300/80 line-through'
+                                : sub.isDuplicate
+                                  ? 'bg-slate-500/20 border border-slate-400/40 text-slate-400 italic'
+                                  : 'bg-red-500/20 border border-red-400/40 text-red-300/80 line-through'
                             }`}
                           >
                             {sub.word}
@@ -1632,16 +1634,27 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     className={`flex items-center justify-between px-4 py-2 rounded-lg border ${
                       submission.isCorrect
                         ? 'bg-emerald-500/20 border-emerald-500/30'
-                        : 'bg-red-500/10 border-red-500/20'
+                        : submission.isDuplicate
+                          ? 'bg-slate-500/10 border-slate-500/20'
+                          : 'bg-red-500/10 border-red-500/20'
                     }`}
                   >
                     <span className="font-semibold">{submission.playerName}</span>
                     <div className="flex items-center gap-2">
-                      <span className={submission.isCorrect ? 'text-emerald-300' : 'text-red-300/60'}>
+                      <span className={
+                        submission.isCorrect
+                          ? 'text-emerald-300'
+                          : submission.isDuplicate
+                            ? 'text-slate-400 italic'
+                            : 'text-red-300/60'
+                      }>
                         {submission.word}
                       </span>
                       {submission.isCorrect && (
                         <span className="text-amber-400 text-sm">+{submission.points}</span>
+                      )}
+                      {submission.isDuplicate && (
+                        <span className="text-slate-500 text-xs">(already guessed)</span>
                       )}
                     </div>
                   </div>
@@ -1785,7 +1798,8 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
   const connectedPlayers = gameState.players.filter(p => p.connected !== false);
   const canRestart = connectedPlayers.length >= 2;
-  const submissions = gameState.submissions || [];
+  // Use allSubmissions for final stats (includes all rounds), fallback to submissions for compatibility
+  const submissions = gameState.allSubmissions || gameState.submissions || [];
 
   // Calculate game statistics
   const gameDuration = gameState.createdAt ? Math.floor((Date.now() - gameState.createdAt) / 1000 / 60) : 0;
@@ -1822,9 +1836,10 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
   const mvp = sortedPlayers[0];
   const bestStreakData = calculateBestStreak();
 
-  // Calculate accuracy per player
+  // Calculate accuracy per player (excludes duplicate guesses)
   const getPlayerAccuracy = (playerId) => {
-    const playerSubs = submissions.filter(s => s.playerId === playerId);
+    // Filter out duplicates - they don't count toward accuracy
+    const playerSubs = submissions.filter(s => s.playerId === playerId && !s.isDuplicate);
     if (playerSubs.length === 0) return 0;
     const correct = playerSubs.filter(s => s.isCorrect).length;
     return Math.round((correct / playerSubs.length) * 100);
@@ -2342,7 +2357,8 @@ function App() {
       roundEndTime: null,
       breakEndTime: null,
       guesses: [],
-      submissions: [], // Track all submissions (correct and incorrect)
+      submissions: [], // Track current round submissions
+      allSubmissions: [], // Track all submissions across rounds for accuracy
       createdAt: Date.now()
     };
 
@@ -2489,6 +2505,7 @@ function App() {
       breakEndTime: null,
       guesses: [],
       submissions: [],
+      allSubmissions: [], // Initialize for accuracy tracking
       currentDescriber: firstDescriber,
       currentPlayingTeam,
       teamDescriberIndex
@@ -2534,6 +2551,7 @@ function App() {
       playerName: player.name,
       word: guessInput.trim(), // Keep original casing for display
       isCorrect,
+      isDuplicate: alreadyGuessed, // Mark as duplicate (won't count toward accuracy)
       points: isCorrect ? matchedWord.points : 0,
       timestamp: Date.now()
     };
@@ -2647,6 +2665,12 @@ function App() {
       newRound = gameState.currentRound + 1;
     }
 
+    // Accumulate submissions for final accuracy calculation
+    const allSubmissions = [
+      ...(gameState.allSubmissions || []),
+      ...(gameState.submissions || [])
+    ];
+
     await updateGame({
       currentRound: newRound,
       words,
@@ -2654,7 +2678,8 @@ function App() {
       roundEndTime: null,
       breakEndTime: null,
       guesses: [],
-      submissions: []
+      submissions: [], // Clear for next round display
+      allSubmissions // Accumulate for final accuracy
     });
   };
 
@@ -2823,6 +2848,7 @@ function App() {
         restartCountdownEnd: Date.now() + 5000, // 5 second countdown
         guesses: [],
         submissions: [],
+        allSubmissions: [], // Reset all submissions for new game
         isLastRoundBreak: false
       });
 
