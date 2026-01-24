@@ -543,6 +543,10 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
                   max="180"
                   value={settings.roundTime}
                   onChange={(e) => {
+                    const value = e.target.value === '' ? '' : parseInt(e.target.value);
+                    setSettings({...settings, roundTime: value});
+                  }}
+                  onBlur={(e) => {
                     const value = parseInt(e.target.value) || 30;
                     if (value > 180) {
                       alert('Maximum round time is 180 seconds (3 minutes)');
@@ -2446,6 +2450,10 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                     max="180"
                     value={newSettings.roundTime}
                     onChange={(e) => {
+                      const value = e.target.value === '' ? '' : parseInt(e.target.value);
+                      setNewSettings({...newSettings, roundTime: value});
+                    }}
+                    onBlur={(e) => {
                       const value = parseInt(e.target.value) || 30;
                       if (value > 180) {
                         alert('Maximum round time is 180 seconds (3 minutes)');
