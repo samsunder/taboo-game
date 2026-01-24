@@ -614,12 +614,12 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
 
         {/* Footer - only on home screen */}
         <div className="mt-6 pt-4 border-t border-slate-700/50 text-center text-sm text-slate-500">
-          <div className="flex items-center justify-center gap-3">
-            <span>Made by S.S.G</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <span>© 2026 S.S.G</span>
             <span className="text-slate-600">|</span>
             <button
               onClick={() => setShowFeedback(true)}
-              className="hover:text-cyan-400 transition-colors"
+              className="text-slate-400 hover:text-cyan-400 transition-colors"
             >
               Feedback
             </button>
