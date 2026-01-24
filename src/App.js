@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
@@ -389,9 +389,9 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
       <FloatingParticles />
 
       {/* Speech Bubble - Bottom Left */}
-      <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 pointer-events-none z-0 animate-bubble-left" style={{ opacity: 0 }}>
+      <div className="absolute bottom-12 left-2 md:bottom-6 md:left-6 pointer-events-none z-0 animate-bubble-left" style={{ opacity: 0 }}>
         <div className="relative">
-          <svg width="180" height="140" viewBox="0 0 180 140" className="w-44 h-36 md:w-52 md:h-40">
+          <svg width="180" height="140" viewBox="0 0 180 140" className="w-32 h-28 md:w-52 md:h-40">
             <defs>
               <linearGradient id="bubbleGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="rgb(6 182 212 / 0.3)" />
@@ -405,17 +405,17 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
               strokeWidth="1.5"
             />
           </svg>
-          <div className="absolute top-0 left-0 w-44 h-32 md:w-52 md:h-36 flex flex-col items-center justify-center px-2">
-            <span className="text-2xl md:text-3xl mb-1 animate-content-pop">🤔</span>
-            <span className="text-[10px] md:text-xs font-semibold text-cyan-300 tracking-wide text-center leading-tight animate-text-fade">Think fast. Speak smart.<br/>Slip up? You lose.</span>
+          <div className="absolute top-0 left-0 w-32 h-24 md:w-52 md:h-36 flex flex-col items-center justify-center px-2">
+            <span className="text-xl md:text-3xl mb-1 animate-content-pop">🤔</span>
+            <span className="text-[9px] md:text-xs font-semibold text-cyan-300 tracking-wide text-center leading-tight animate-text-fade">Think fast! ⚡<br/>Speak smart!</span>
           </div>
         </div>
       </div>
 
       {/* Speech Bubble - Bottom Right */}
-      <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 pointer-events-none z-0 animate-bubble-right" style={{ opacity: 0 }}>
+      <div className="absolute bottom-12 right-2 md:bottom-6 md:right-6 pointer-events-none z-0 animate-bubble-right" style={{ opacity: 0 }}>
         <div className="relative">
-          <svg width="170" height="140" viewBox="0 0 170 140" className="w-40 h-36 md:w-48 md:h-40">
+          <svg width="170" height="140" viewBox="0 0 170 140" className="w-28 h-28 md:w-48 md:h-40">
             <defs>
               <linearGradient id="bubbleGradientRight" x1="100%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="rgb(20 184 166 / 0.3)" />
@@ -429,9 +429,9 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
               strokeWidth="1.5"
             />
           </svg>
-          <div className="absolute top-0 left-0 w-40 h-32 md:w-48 md:h-36 flex flex-col items-center justify-center px-2">
-            <span className="text-2xl md:text-3xl mb-1 animate-content-pop-delayed">💬</span>
-            <span className="text-[10px] md:text-xs font-semibold text-teal-300 tracking-wide text-center leading-tight animate-text-fade-delayed">Play live.<br/>Laugh louder.</span>
+          <div className="absolute top-0 left-0 w-28 h-24 md:w-48 md:h-36 flex flex-col items-center justify-center px-2">
+            <span className="text-xl md:text-3xl mb-1 animate-content-pop-delayed">🎉</span>
+            <span className="text-[9px] md:text-xs font-semibold text-teal-300 tracking-wide text-center leading-tight animate-text-fade-delayed">Play live.<br/>Laugh louder.</span>
           </div>
         </div>
       </div>
@@ -1045,7 +1045,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
   );
 }
 
-function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leaveGame }) {
+function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam }) {
   if (!gameState) return null;
 
   const team1 = gameState.players.filter(p => p.team === 1);
@@ -1107,10 +1107,21 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
               </h3>
               <div className="space-y-2">
                 {team1.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
-                    <span className="text-lg">{player.emoji || '😀'}</span>
-                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                    {player.name}
+                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{player.emoji || '😀'}</span>
+                      {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
+                      <span>{player.name}</span>
+                    </div>
+                    {(player.id === playerId || isHost) && (
+                      <button
+                        onClick={() => switchTeam(player.id)}
+                        className="p-1 hover:bg-rose-500/30 rounded transition-colors"
+                        title="Switch to Team 2"
+                      >
+                        <ArrowRightLeft className="w-4 h-4 text-rose-400" />
+                      </button>
+                    )}
                   </div>
                 ))}
                 {team1.length < 2 && (
@@ -1127,10 +1138,21 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
               </h3>
               <div className="space-y-2">
                 {team2.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center gap-2">
-                    <span className="text-lg">{player.emoji || '😀'}</span>
-                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                    {player.name}
+                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{player.emoji || '😀'}</span>
+                      {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
+                      <span>{player.name}</span>
+                    </div>
+                    {(player.id === playerId || isHost) && (
+                      <button
+                        onClick={() => switchTeam(player.id)}
+                        className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                        title="Switch to Team 1"
+                      >
+                        <ArrowRightLeft className="w-4 h-4 text-cyan-400" />
+                      </button>
+                    )}
                   </div>
                 ))}
                 {team2.length < 2 && (
@@ -1187,7 +1209,7 @@ function LobbyScreen({ gameState, gameId, isHost, copyGameLink, startGame, leave
   );
 }
 
-function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
+function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, availableDescribers = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -1245,51 +1267,64 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
             </button>
 
             {showPlayers && (
-              <div className="bg-slate-900/50 max-h-48 sm:max-h-48 overflow-y-auto">
+              <div className="bg-slate-900/50 max-h-56 overflow-y-auto overflow-x-hidden custom-scrollbar">
                 {gameState?.players?.map(player => (
                   <div
                     key={player.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-2 hover:bg-slate-700/30 gap-1 sm:gap-0"
+                    className="flex items-center justify-between px-3 py-2 hover:bg-slate-700/30 gap-2"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{player.emoji || '😀'}</span>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-sm flex-shrink-0">{player.emoji || '😀'}</span>
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
                       {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                      {gameState.settings.teamMode && player.team && (
+                        <span className={`text-[10px] font-bold px-1 py-0.5 rounded flex-shrink-0 ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                          T{player.team}
+                        </span>
+                      )}
                       <span className={`text-sm truncate ${player.connected === false ? 'text-slate-500' : ''}`}>
-                        {player.name}
-                        {player.id === playerId && ' (You)'}
+                        {player.name}{player.id === playerId && ' (You)'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 ml-6 sm:ml-0">
-                      <span className="text-xs text-amber-400">{player.score}pts</span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="text-xs text-amber-400 mr-1">{player.score}</span>
                       {player.id === gameState.currentDescriber && (
-                        <Mic className="w-3 h-3 text-cyan-400 flex-shrink-0" title="Current describer" />
+                        <Mic className="w-3 h-3 text-cyan-400" title="Current describer" />
                       )}
-                      {isHost && player.id !== playerId && player.id !== gameState.currentDescriber && (
+                      {isHost && player.id !== playerId && availableDescribers.some(p => p.id === player.id) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); promoteDescriber(player.id); }}
-                          className="p-1.5 hover:bg-cyan-500/30 rounded transition-colors"
+                          className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
                           title="Make describer"
                         >
-                          <MicVocal className="w-4 h-4 sm:w-3 sm:h-3 text-cyan-400" />
+                          <MicVocal className="w-3.5 h-3.5 text-cyan-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
                         <button
                           onClick={(e) => { e.stopPropagation(); transferHost(player.id); }}
-                          className="p-1.5 hover:bg-amber-500/30 rounded transition-colors"
+                          className="p-1 hover:bg-amber-500/30 rounded transition-colors"
                           title="Transfer host"
                         >
-                          <Crown className="w-4 h-4 sm:w-3 sm:h-3 text-amber-400" />
+                          <Crown className="w-3.5 h-3.5 text-amber-400" />
                         </button>
                       )}
                       {isHost && player.id !== playerId && (
                         <button
                           onClick={(e) => { e.stopPropagation(); kickPlayer(player.id); }}
-                          className="p-1.5 hover:bg-red-500/30 rounded transition-colors"
+                          className="p-1 hover:bg-red-500/30 rounded transition-colors"
                           title="Kick player"
                         >
-                          <UserX className="w-4 h-4 sm:w-3 sm:h-3 text-red-400" />
+                          <UserX className="w-3.5 h-3.5 text-red-400" />
+                        </button>
+                      )}
+                      {gameState.settings.teamMode && (player.id === playerId || isHost) && player.id !== gameState.currentDescriber && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); switchTeam(player.id); }}
+                          className={`p-1 rounded transition-colors ${player.team === 1 ? 'hover:bg-rose-500/30' : 'hover:bg-cyan-500/30'}`}
+                          title={`Switch to Team ${player.team === 1 ? '2' : '1'}`}
+                        >
+                          <ArrowRightLeft className={`w-3.5 h-3.5 ${player.team === 1 ? 'text-rose-400' : 'text-cyan-400'}`} />
                         </button>
                       )}
                     </div>
@@ -1375,7 +1410,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1394,7 +1429,11 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   const describer = gameState.players.find(p => p.id === gameState.currentDescriber);
   const isDescriberOffline = describer && describer.connected === false;
   const onlinePlayers = gameState.players.filter(p => p.connected !== false);
-  const availableDescribers = onlinePlayers.filter(p => p.id !== gameState.currentDescriber);
+  // In team mode, only players from the current playing team can be made describer
+  const availableDescribers = onlinePlayers.filter(p =>
+    p.id !== gameState.currentDescriber &&
+    (!gameState.settings.teamMode || p.team === gameState.currentPlayingTeam)
+  );
 
   // Team mode info
   const isTeamMode = gameState.settings.teamMode;
@@ -1492,6 +1531,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             kickPlayer={kickPlayer}
             promoteDescriber={promoteDescriber}
             transferHost={transferHost}
+            switchTeam={switchTeam}
+            availableDescribers={availableDescribers}
           />
         </div>
 
@@ -1501,8 +1542,19 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
               {gameState.isLastRoundBreak ? 'Final Round Complete!' :
-                isTeamMode ? `Team ${currentPlayingTeam === 1 ? 2 : 1}'s Turn Complete!` : `Round ${gameState.currentRound} Complete!`}
+                isTeamMode
+                  ? (currentPlayingTeam === 1
+                      ? `Round ${gameState.currentRound} Complete!`
+                      : `Team 1's Turn Complete!`)
+                  : `Round ${gameState.currentRound} Complete!`}
             </h1>
+            {isTeamMode && !gameState.isLastRoundBreak && (
+              <p className="text-slate-400 text-sm mt-1">
+                {currentPlayingTeam === 1
+                  ? `Team 1 starts round ${gameState.currentRound + 1}`
+                  : `Team 2 plays to complete round ${gameState.currentRound}`}
+              </p>
+            )}
             {gameState.isLastRoundBreak && (
               <p className="text-slate-300 mt-2">Results coming up...</p>
             )}
@@ -1586,10 +1638,10 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                       </p>
                     </div>
                   )}
-                  {/* Host controls - always show during break when not the describer */}
-                  {isHost && !isDescriber && availableDescribers.length > 0 && gameState.players.length >= 2 && (
+                  {/* Host controls - always show during break */}
+                  {isHost && availableDescribers.length > 0 && gameState.players.length >= 2 && (
                     <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-3">
-                      <span className="text-xs text-slate-400 block mb-2">Assign describer:</span>
+                      <span className="text-xs text-slate-400 block mb-2">{isDescriber ? 'Reassign describer:' : 'Assign describer:'}</span>
                       <div className="flex flex-wrap gap-2">
                         {availableDescribers.map(p => (
                           <button
@@ -1605,7 +1657,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     </div>
                   )}
                   {/* Host but no available describers */}
-                  {isHost && !isDescriber && availableDescribers.length === 0 && gameState.players.length >= 2 && (
+                  {isHost && availableDescribers.length === 0 && gameState.players.length >= 2 && (
                     <p className="text-amber-400 text-xs px-4 py-2">
                       No other online players available to assign.
                     </p>
@@ -1788,6 +1840,8 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             kickPlayer={kickPlayer}
             promoteDescriber={promoteDescriber}
             transferHost={transferHost}
+            switchTeam={switchTeam}
+            availableDescribers={availableDescribers}
           />
         </div>
 
@@ -2109,8 +2163,10 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
   // Calculate game statistics
   const gameDuration = gameState.createdAt ? Math.floor((Date.now() - gameState.createdAt) / 1000 / 60) : 0;
-  const totalWordsGuessed = (gameState.guesses || []).length;
-  const totalWords = gameState.words?.length || 0;
+  const totalWordsGuessed = submissions.filter(s => s.isCorrect).length;
+  const totalRounds = gameState.settings?.rounds || 1;
+  const wordsPerRound = gameState.settings?.wordsPerRound || 20;
+  const totalWords = totalRounds * wordsPerRound * (isTeamMode ? 2 : 1); // In team mode, each round has 2 team turns
 
   // Calculate best streak per player
   const calculateBestStreak = () => {
@@ -2175,6 +2231,8 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
           kickPlayer={kickPlayer}
           promoteDescriber={() => {}} // Not needed in results screen
           transferHost={transferHost}
+          switchTeam={() => {}} // Not needed in results screen
+          availableDescribers={[]} // Not needed in results screen
         />
       </div>
 
@@ -3216,6 +3274,41 @@ function App() {
     }
   };
 
+  const switchTeam = async (targetPlayerId) => {
+    if (!gameState || !gameState.settings.teamMode) return;
+
+    // Allow in lobby OR during break periods (not mid-round)
+    const isInLobby = gameState.status === 'waiting';
+    const isDuringBreak = gameState.breakEndTime && !gameState.roundStartTime;
+    const isBeforeFirstRound = gameState.status === 'playing' && !gameState.roundStartTime;
+
+    if (!isInLobby && !isDuringBreak && !isBeforeFirstRound) {
+      alert('Cannot switch teams during an active round. Wait for the break period.');
+      return;
+    }
+
+    // Cannot switch the current describer
+    if (targetPlayerId === gameState.currentDescriber) {
+      alert('Cannot switch the current describer\'s team.');
+      return;
+    }
+
+    const targetPlayer = gameState.players.find(p => p.id === targetPlayerId);
+    if (!targetPlayer) return;
+
+    const newTeam = targetPlayer.team === 1 ? 2 : 1;
+    const updatedPlayers = gameState.players.map(p =>
+      p.id === targetPlayerId ? { ...p, team: newTeam } : p
+    );
+
+    try {
+      await updateGame({ players: updatedPlayers });
+    } catch (err) {
+      console.error('Switch team error:', err);
+      alert('Failed to switch team: ' + err.message);
+    }
+  };
+
   const transferHost = async (newHostId) => {
     if (!gameState || !isHost) return;
 
@@ -3302,9 +3395,11 @@ function App() {
       gameState={gameState}
       gameId={gameId}
       isHost={isHost}
+      playerId={playerId}
       copyGameLink={copyGameLink}
       startGame={startGame}
       leaveGame={leaveGame}
+      switchTeam={switchTeam}
     />;
   }
 
@@ -3329,6 +3424,7 @@ function App() {
       kickPlayer={kickPlayer}
       promoteDescriber={promoteDescriber}
       transferHost={transferHost}
+      switchTeam={switchTeam}
     />;
   }
 
