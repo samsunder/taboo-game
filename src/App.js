@@ -2538,6 +2538,7 @@ function App() {
   const [playerId, setPlayerId] = useState('');
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
+  const isLeavingGame = useRef(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Update current time every second for timer display
@@ -2639,11 +2640,11 @@ function App() {
           const newState = JSON.parse(data);
           console.log('Real-time update:', newState.players.length, 'players', newState.players.map(p => p.name), 'status:', newState.status);
 
-          // Check if current player was kicked
+          // Check if current player was kicked (but not if they left voluntarily)
           const currentPlayerId = window.localStorage.getItem('taboo_player_id');
           const playerStillInGame = newState.players.some(p => p.id === currentPlayerId);
 
-          if (!playerStillInGame && currentPlayerId) {
+          if (!playerStillInGame && currentPlayerId && !isLeavingGame.current) {
             console.log('Player was kicked from the game');
             alert('You have been removed from the game by the host.');
             window.localStorage.removeItem('taboo_player_id');
@@ -3106,6 +3107,9 @@ function App() {
   };
 
   const leaveGame = async () => {
+    // Mark that we're leaving voluntarily to prevent "removed by host" alert
+    isLeavingGame.current = true;
+
     // Remove player from the game if we have game state
     if (gameState && playerId) {
       // Clear localStorage first to prevent the Firebase listener from
@@ -3146,6 +3150,9 @@ function App() {
 
   const logoutPlayer = async () => {
     if (!gameState || !playerId) return;
+
+    // Mark that we're leaving voluntarily to prevent "removed by host" alert
+    isLeavingGame.current = true;
 
     try {
       // Remove player from the game
