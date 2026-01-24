@@ -57,30 +57,96 @@ function CustomDropdown({ value, onChange, options, label }) {
 }
 
 // Toggle Switch Component
-function ToggleSwitch({ checked, onChange, label, badge }) {
+function ToggleSwitch({ checked, onChange, label, badge, helperText }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="text-slate-300">{label}</span>
-        {badge && (
-          <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
-            {badge}
-          </span>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`relative w-14 h-8 rounded-full transition-colors ${
-          checked ? 'bg-cyan-500' : 'bg-slate-600'
-        }`}
-      >
-        <div
-          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
-            checked ? 'translate-x-7' : 'translate-x-1'
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-300">{label}</span>
+          {badge && (
+            <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+              {badge}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(!checked)}
+          className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
+            checked
+              ? 'bg-cyan-500 shadow-[0_0_12px_rgba(34,211,238,0.5)] ring-2 ring-cyan-400/30'
+              : 'bg-slate-600'
           }`}
+        >
+          <div
+            className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] ${
+              checked ? 'translate-x-7' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+      {checked && helperText && (
+        <p className="text-xs text-cyan-400/80 pl-0.5 animate-pulse">{helperText}</p>
+      )}
+    </div>
+  );
+}
+
+// Custom Number Input with styled +/- buttons
+function NumberInput({ value, onChange, min, max, label, hint }) {
+  const handleDecrement = () => {
+    const newVal = Math.max(min, (parseInt(value) || min) - 1);
+    onChange(newVal);
+  };
+
+  const handleIncrement = () => {
+    const newVal = Math.min(max, (parseInt(value) || min) + 1);
+    onChange(newVal);
+  };
+
+  const handleChange = (e) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    if (val === '') {
+      onChange('');
+      return;
+    }
+    onChange(parseInt(val));
+  };
+
+  const handleBlur = () => {
+    const num = parseInt(value) || min;
+    onChange(Math.min(max, Math.max(min, num)));
+  };
+
+  return (
+    <div>
+      {label && <label className="block text-sm text-slate-400 mb-2">{label}</label>}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleDecrement}
+          className="w-10 h-10 flex items-center justify-center bg-transparent hover:bg-slate-700 border border-slate-600 hover:border-slate-500 rounded-lg text-slate-500 hover:text-white active:bg-slate-600 active:scale-90 transition-all text-xl font-bold"
+        >
+          −
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={value}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          className="flex-1 bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white text-center font-semibold text-lg"
         />
-      </button>
+        <button
+          type="button"
+          onClick={handleIncrement}
+          className="w-10 h-10 flex items-center justify-center bg-transparent hover:bg-slate-700 border border-slate-600 hover:border-slate-500 rounded-lg text-slate-500 hover:text-white active:bg-slate-600 active:scale-90 transition-all text-xl font-bold"
+        >
+          +
+        </button>
+      </div>
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -160,12 +226,15 @@ function FeedbackModal({ isOpen, onClose }) {
               <label className="block text-sm text-slate-300 mb-2">Your Message *</label>
               <textarea
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={(e) => setFeedback(e.target.value.slice(0, 500))}
                 placeholder="What's on your mind?"
                 rows={4}
+                minLength={10}
+                maxLength={500}
                 className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none resize-none"
                 required
               />
+              <p className="text-xs text-slate-500 mt-1 text-right">{feedback.length}/500</p>
             </div>
             <div>
               <label className="block text-sm text-slate-300 mb-2">Email (optional)</label>
@@ -489,7 +558,7 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
         )}
 
         {/* Main Card */}
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
+        <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <div>
             <div className="flex gap-2">
               {/* Emoji Picker Button */}
@@ -524,43 +593,21 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
 
           {showSettings && (
             <div className="space-y-4 pt-4 border-t border-slate-600">
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Rounds</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={settings.rounds}
-                  onChange={(e) => setSettings({...settings, rounds: parseInt(e.target.value)})}
-                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Round Time (seconds)</label>
-                <input
-                  type="number"
-                  min="30"
-                  max="180"
-                  value={settings.roundTime}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? '' : parseInt(e.target.value);
-                    setSettings({...settings, roundTime: value});
-                  }}
-                  onBlur={(e) => {
-                    const value = parseInt(e.target.value) || 30;
-                    if (value > 180) {
-                      alert('Maximum round time is 180 seconds (3 minutes)');
-                      setSettings({...settings, roundTime: 180});
-                    } else if (value < 30) {
-                      setSettings({...settings, roundTime: 30});
-                    } else {
-                      setSettings({...settings, roundTime: value});
-                    }
-                  }}
-                  className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                />
-                <p className="text-xs text-slate-500 mt-1">Min: 30s, Max: 180s (3 min)</p>
-              </div>
+              <NumberInput
+                label="Rounds"
+                value={settings.rounds}
+                onChange={(val) => setSettings({...settings, rounds: val})}
+                min={1}
+                max={10}
+              />
+              <NumberInput
+                label="Round Time (seconds)"
+                value={settings.roundTime}
+                onChange={(val) => setSettings({...settings, roundTime: val})}
+                min={30}
+                max={180}
+                hint="Min: 30s, Max: 180s (3 min)"
+              />
               <CustomDropdown
                 label="Difficulty"
                 value={settings.difficulty}
@@ -575,13 +622,14 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
                 badge="Beta"
                 checked={settings.teamMode}
                 onChange={(checked) => setSettings({...settings, teamMode: checked})}
+                helperText="Players will be split into teams"
               />
             </div>
           )}
 
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-full flex items-center justify-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-4 py-2 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-4 py-2 rounded-xl transition-all active:scale-[0.98]"
           >
             <Settings className="w-4 h-4" />
             {showSettings ? 'Hide' : 'Show'} Settings
@@ -589,7 +637,7 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
 
           <button
             onClick={handleCreate}
-            className="w-full bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-cyan-500/20"
+            className="w-full bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-cyan-500/20"
           >
             <Play className="w-5 h-5 inline mr-2" />
             Create Game
@@ -899,7 +947,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
           </div>
         )}
 
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
+        <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
           <div>
             <div className="flex gap-2">
               {/* Emoji Picker Button */}
@@ -1081,19 +1129,19 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
           </div>
           <button
             onClick={leaveGame}
-            className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 px-4 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 px-4 py-2 rounded-xl transition-all active:scale-95"
           >
             <LogOut className="w-4 h-4" />
             Leave
           </button>
         </div>
 
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+        <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xl font-bold text-cyan-300">Game Code: {gameId}</span>
             <button
               onClick={copyGameLink}
-              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-xl transition-colors"
+              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-xl transition-all active:scale-95"
             >
               <Copy className="w-4 h-4" />
               Copy Link
@@ -1179,7 +1227,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
             </div>
           </div>
         ) : (
-          <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+          <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
               <Users className="w-5 h-5" />
               Players ({gameState.players.length})
@@ -1199,7 +1247,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
         {isHost && canStart && (
           <button
             onClick={startGame}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-6 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-2"
           >
             <Play className="w-6 h-6" />
             Start Game
@@ -1256,7 +1304,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 w-auto sm:w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto">
+        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 w-auto sm:w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto custom-scrollbar">
           {/* Player Info Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border-b border-slate-600">
             <div className="flex items-center gap-2">
@@ -1425,7 +1473,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1513,6 +1561,34 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
             <Sparkles className="w-6 h-6 text-emerald-400 animate-pulse" style={{ animationDelay: '0.2s' }} />
             <Sparkles className="w-6 h-6 text-cyan-400 animate-pulse" style={{ animationDelay: '0.4s' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show 3-2-1 countdown overlay before round starts
+  if (startCountdown !== null && !gameState.roundStartTime) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 flex items-center justify-center">
+        <div className="text-center space-y-8">
+          {/* Animated countdown circle */}
+          <div className="relative inline-flex items-center justify-center">
+            <div className="w-48 h-48 rounded-full bg-gradient-to-br from-cyan-500/20 to-teal-600/20 border-4 border-cyan-500/50 flex items-center justify-center animate-pulse">
+              <span className="text-8xl font-bold text-cyan-400">
+                {startCountdown === 0 ? 'GO!' : startCountdown}
+              </span>
+            </div>
+          </div>
+
+          {/* Message */}
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              {isDescriber ? 'Get ready to describe!' : 'Get ready to guess!'}
+            </h1>
+            <p className="text-slate-400 mt-2">
+              {isDescriber ? 'Your word will appear shortly...' : `${describer?.name} is about to describe`}
+            </p>
           </div>
         </div>
       </div>
@@ -1624,14 +1700,24 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     <div className="flex gap-2">
                       <button
                         onClick={startNextRound}
-                        className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-5 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                        disabled={startCountdown !== null}
+                        className={`flex-1 sm:flex-none px-5 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
+                          startCountdown !== null
+                            ? 'bg-slate-600 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105 active:scale-95'
+                        }`}
                       >
                         <Play className="w-5 h-5" />
-                        Start Round
+                        {startCountdown !== null ? `Starting in ${startCountdown}...` : 'Start Round'}
                       </button>
                       <button
                         onClick={skipTurn}
-                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                        disabled={startCountdown !== null}
+                        className={`px-4 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
+                          startCountdown !== null
+                            ? 'bg-slate-600 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 transform hover:scale-105 active:scale-95'
+                        }`}
                         title="Skip your turn"
                       >
                         <SkipForward className="w-5 h-5" />
@@ -1969,7 +2055,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
 
           {/* Guessing input - only for active team guessers */}
           {canGuess && (
-            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+            <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
               <form onSubmit={(e) => { e.preventDefault(); submitGuess(); }} className="flex gap-3">
                 <input
                   type="text"
@@ -1981,7 +2067,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                 />
                 <button
                   type="submit"
-                  className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all"
+                  className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 px-6 py-3 rounded-xl font-bold transition-all active:scale-95"
                 >
                   Submit
                 </button>
@@ -1997,12 +2083,12 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
           )}
 
           {(gameState.submissions || []).length > 0 && (
-            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700">
+            <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
               <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <Zap className="w-5 h-5 text-amber-400" />
                 Submitted Words This Round
               </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
                 {(gameState.submissions || []).slice().reverse().map((submission, idx) => (
                   <div
                     key={idx}
@@ -2179,9 +2265,6 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
   // Calculate game statistics
   const gameDuration = gameState.createdAt ? Math.floor((Date.now() - gameState.createdAt) / 1000 / 60) : 0;
   const totalWordsGuessed = submissions.filter(s => s.isCorrect).length;
-  const totalRounds = gameState.settings?.rounds || 1;
-  const wordsPerRound = gameState.settings?.wordsPerRound || 20;
-  const totalWords = totalRounds * wordsPerRound * (isTeamMode ? 2 : 1); // In team mode, each round has 2 team turns
 
   // Calculate best streak per player
   const calculateBestStreak = () => {
@@ -2209,8 +2292,6 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
     return { player: bestPlayer, streak: bestStreak };
   };
 
-  // Find MVP (most points in a single round concept - approximated by highest scorer)
-  const mvp = sortedPlayers[0];
   const bestStreakData = calculateBestStreak();
 
   // Calculate accuracy per player (excludes duplicate guesses)
@@ -2252,48 +2333,37 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
       </div>
 
       <div className="max-w-4xl w-full space-y-6 relative z-10">
-        {/* Winner Announcement with Animated Trophy */}
-        <div className="text-center space-y-4">
-          <div className="relative inline-block">
-            <Trophy className="w-24 h-24 text-amber-400 mx-auto animate-bounce" />
-            <div className="absolute inset-0 w-24 h-24 mx-auto bg-amber-400/20 rounded-full blur-xl animate-pulse" />
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 bg-clip-text text-transparent animate-pulse">
+        {/* Winner Announcement - Big and Bold */}
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 bg-clip-text text-transparent">
             Game Over!
           </h1>
           {isTeamMode ? (
-            <p className="text-2xl md:text-3xl text-cyan-300">
+            <p className="text-xl md:text-2xl text-slate-300">
               {winningTeam === 0 ? "It's a tie!" : `Team ${winningTeam} wins!`}
             </p>
           ) : (
             <div className="flex items-center justify-center gap-3">
-              <PlayerAvatar name={winner?.name || 'Winner'} emoji={winner?.emoji} size="lg" highlight />
-              <p className="text-2xl md:text-3xl text-cyan-300">{winner?.name} wins!</p>
+              <p className="text-xl md:text-2xl text-slate-300">
+                <span className="text-amber-400 font-bold">{winner?.name}</span> wins!
+              </p>
             </div>
           )}
         </div>
 
-        {/* Game Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-cyan-500/20 to-blue-600/20 backdrop-blur-md rounded-xl p-4 border border-cyan-500/30 text-center">
-            <Clock className="w-6 h-6 mx-auto mb-2 text-cyan-400" />
-            <p className="text-2xl font-bold text-white">{gameDuration}</p>
-            <p className="text-xs text-slate-400">Minutes Played</p>
+        {/* Compact Game Statistics - Single Row */}
+        <div className="flex justify-center gap-6 text-center text-sm">
+          <div>
+            <span className="text-slate-400">Duration</span>
+            <p className="text-lg font-bold text-white">{gameDuration} min</p>
           </div>
-          <div className="bg-gradient-to-br from-emerald-500/20 to-teal-600/20 backdrop-blur-md rounded-xl p-4 border border-emerald-500/30 text-center">
-            <Target className="w-6 h-6 mx-auto mb-2 text-emerald-400" />
-            <p className="text-2xl font-bold text-white">{totalWordsGuessed}/{totalWords}</p>
-            <p className="text-xs text-slate-400">Words Guessed</p>
+          <div className="border-l border-slate-700 pl-6">
+            <span className="text-slate-400">Words</span>
+            <p className="text-lg font-bold text-emerald-400">{totalWordsGuessed}</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500/20 to-pink-600/20 backdrop-blur-md rounded-xl p-4 border border-purple-500/30 text-center">
-            <Sparkles className="w-6 h-6 mx-auto mb-2 text-purple-400" />
-            <p className="text-2xl font-bold text-white">{bestStreakData.streak}</p>
-            <p className="text-xs text-slate-400">Best Streak</p>
-          </div>
-          <div className="bg-gradient-to-br from-amber-500/20 to-orange-600/20 backdrop-blur-md rounded-xl p-4 border border-amber-500/30 text-center">
-            <Star className="w-6 h-6 mx-auto mb-2 text-amber-400" />
-            <p className="text-2xl font-bold text-white">{mvp?.name?.split(' ')[0] || '-'}</p>
-            <p className="text-xs text-slate-400">MVP</p>
+          <div className="border-l border-slate-700 pl-6">
+            <span className="text-slate-400">Best Streak</span>
+            <p className="text-lg font-bold text-purple-400">{bestStreakData.streak}</p>
           </div>
         </div>
 
@@ -2323,75 +2393,83 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
           </div>
         )}
 
-        {/* Podium for top 3 (non-team mode) */}
+        {/* Podium for top 3 (non-team mode) - Real podium layout */}
         {!isTeamMode && sortedPlayers.length >= 3 && (
-          <div className="flex items-end justify-center gap-2 md:gap-4 h-48">
-            {/* 2nd Place */}
-            <div className="flex flex-col items-center">
-              <PlayerAvatar name={sortedPlayers[1]?.name || ''} emoji={sortedPlayers[1]?.emoji} size="md" />
-              <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[1]?.name}</p>
-              <div className="bg-gradient-to-t from-slate-400/40 to-slate-300/20 border border-slate-400/50 rounded-t-lg w-20 md:w-24 h-24 flex flex-col items-center justify-center mt-2">
-                <span className="text-3xl">🥈</span>
-                <p className="text-xl font-bold text-white"><AnimatedScore value={sortedPlayers[1]?.score || 0} /></p>
+          <div className="relative flex items-end justify-center gap-1 h-56 mt-4">
+            {/* 2nd Place - Left */}
+            <div className="flex flex-col items-center z-10">
+              <div className="relative mb-2">
+                <PlayerAvatar name={sortedPlayers[1]?.name || ''} emoji={sortedPlayers[1]?.emoji} size="md" />
+              </div>
+              <p className="text-xs font-semibold text-slate-300 truncate max-w-[70px] mb-1">{sortedPlayers[1]?.name}</p>
+              <div className="bg-gradient-to-b from-slate-300 to-slate-500 rounded-t-lg w-20 md:w-24 h-20 flex flex-col items-center justify-center shadow-lg">
+                <span className="text-2xl font-bold text-slate-800">2</span>
+                <p className="text-lg font-bold text-slate-800"><AnimatedScore value={sortedPlayers[1]?.score || 0} /></p>
               </div>
             </div>
-            {/* 1st Place */}
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <PlayerAvatar name={sortedPlayers[0]?.name || ''} emoji={sortedPlayers[0]?.emoji} size="lg" highlight />
-                <div className="absolute -top-2 -right-2 text-2xl animate-bounce">👑</div>
+
+            {/* 1st Place - Center (Tallest) */}
+            <div className="flex flex-col items-center z-20 -mx-2">
+              <div className="relative mb-2">
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl animate-bounce">👑</div>
+                <div className="ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-900 rounded-full">
+                  <PlayerAvatar name={sortedPlayers[0]?.name || ''} emoji={sortedPlayers[0]?.emoji} size="lg" highlight />
+                </div>
               </div>
-              <p className="text-sm font-semibold mt-2 text-amber-300 truncate max-w-[80px]">{sortedPlayers[0]?.name}</p>
-              <div className="bg-gradient-to-t from-amber-500/40 to-yellow-400/20 border-2 border-amber-500/50 rounded-t-lg w-24 md:w-28 h-32 flex flex-col items-center justify-center mt-2 shadow-lg shadow-amber-500/20">
-                <span className="text-4xl">🥇</span>
-                <p className="text-2xl font-bold text-amber-400"><AnimatedScore value={sortedPlayers[0]?.score || 0} /></p>
+              <p className="text-sm font-bold text-amber-400 truncate max-w-[80px] mb-1">{sortedPlayers[0]?.name}</p>
+              <div className="bg-gradient-to-b from-amber-400 to-amber-600 rounded-t-lg w-24 md:w-28 h-28 flex flex-col items-center justify-center shadow-lg shadow-amber-500/30">
+                <span className="text-3xl font-bold text-amber-900">1</span>
+                <p className="text-2xl font-bold text-amber-900"><AnimatedScore value={sortedPlayers[0]?.score || 0} /></p>
               </div>
             </div>
-            {/* 3rd Place */}
-            <div className="flex flex-col items-center">
-              <PlayerAvatar name={sortedPlayers[2]?.name || ''} emoji={sortedPlayers[2]?.emoji} size="md" />
-              <p className="text-sm font-semibold mt-2 text-slate-300 truncate max-w-[80px]">{sortedPlayers[2]?.name}</p>
-              <div className="bg-gradient-to-t from-orange-700/40 to-orange-600/20 border border-orange-700/50 rounded-t-lg w-20 md:w-24 h-20 flex flex-col items-center justify-center mt-2">
-                <span className="text-2xl">🥉</span>
-                <p className="text-lg font-bold text-white"><AnimatedScore value={sortedPlayers[2]?.score || 0} /></p>
+
+            {/* 3rd Place - Right */}
+            <div className="flex flex-col items-center z-10">
+              <div className="relative mb-2">
+                <PlayerAvatar name={sortedPlayers[2]?.name || ''} emoji={sortedPlayers[2]?.emoji} size="md" />
+              </div>
+              <p className="text-xs font-semibold text-slate-300 truncate max-w-[70px] mb-1">{sortedPlayers[2]?.name}</p>
+              <div className="bg-gradient-to-b from-orange-400 to-orange-700 rounded-t-lg w-20 md:w-24 h-16 flex flex-col items-center justify-center shadow-lg">
+                <span className="text-xl font-bold text-orange-900">3</span>
+                <p className="text-base font-bold text-orange-900"><AnimatedScore value={sortedPlayers[2]?.score || 0} /></p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Full Leaderboard */}
-        <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-cyan-400" />
+        {/* Full Leaderboard - All Players */}
+        <div className="card-rich backdrop-blur-md rounded-2xl p-4 border border-slate-700/50">
+          <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-slate-300">
+            <Users className="w-4 h-4 text-cyan-400" />
             {isTeamMode ? 'Individual Contributions' : 'Final Standings'}
           </h2>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {sortedPlayers.map((player, idx) => {
-              const playerTitle = getPlayerTitle(player, sortedPlayers, submissions, idx === 0 && !isTeamMode);
               const accuracy = getPlayerAccuracy(player.id);
+              const playerTitle = getPlayerTitle(player, sortedPlayers, submissions, idx === 0 && !isTeamMode);
 
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:scale-[1.02] ${
-                    !isTeamMode && idx === 0 ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50' :
-                    !isTeamMode && idx === 1 ? 'bg-gradient-to-r from-slate-400/10 to-slate-300/10 border border-slate-400/30' :
-                    !isTeamMode && idx === 2 ? 'bg-gradient-to-r from-orange-700/20 to-orange-600/10 border border-orange-700/30' :
-                    isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/30' :
-                    isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/30' :
-                    'bg-slate-800/30 border border-slate-700/50'
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                    !isTeamMode && idx === 0 ? 'bg-amber-500/15 border border-amber-500/30' :
+                    !isTeamMode && idx === 1 ? 'bg-slate-400/10 border border-slate-500/20' :
+                    !isTeamMode && idx === 2 ? 'bg-orange-600/15 border border-orange-600/20' :
+                    isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/20' :
+                    isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/20' :
+                    'bg-slate-700/20 border border-slate-700/30'
                   }`}
                 >
                   {/* Rank */}
                   {!isTeamMode && (
-                    <span className="text-2xl font-bold w-8 text-center">
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    <span className="text-sm font-bold w-6 text-center text-slate-400">
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
                     </span>
                   )}
 
                   {/* Team Badge */}
                   {isTeamMode && (
-                    <span className={`text-xs px-2 py-1 rounded font-semibold ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
                       T{player.team}
                     </span>
                   )}
@@ -2401,23 +2479,16 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
                   {/* Name and Title */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{player.name}</p>
-                    <p className={`text-xs ${playerTitle.color}`}>
-                      {playerTitle.icon} {playerTitle.title}
-                    </p>
+                    <p className="font-medium text-sm truncate">{player.name}</p>
+                    <p className={`text-[10px] ${playerTitle.color}`}>{playerTitle.icon} {playerTitle.title}</p>
                   </div>
 
                   {/* Accuracy & Score */}
-                  <div className="text-right flex items-center gap-3 sm:gap-4">
-                    <div>
-                      <p className="text-[10px] sm:text-xs text-slate-400">Accuracy</p>
-                      <p className="text-xs sm:text-sm font-semibold text-emerald-400">{accuracy}%</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-amber-400">
-                        <AnimatedScore value={player.score} duration={1000 + idx * 200} />
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-emerald-400">{accuracy}%</span>
+                    <span className="text-lg font-bold text-amber-400 w-12 text-right">
+                      <AnimatedScore value={player.score} duration={800 + idx * 100} />
+                    </span>
                   </div>
                 </div>
               );
@@ -2429,45 +2500,23 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
         {isHost ? (
           <div className="space-y-3">
             {showSettings && (
-              <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
+              <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700 space-y-4">
                 <h3 className="text-xl font-bold mb-2">Game Settings</h3>
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">Rounds</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={newSettings.rounds}
-                    onChange={(e) => setNewSettings({...newSettings, rounds: parseInt(e.target.value)})}
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-300 mb-2">Round Time (seconds)</label>
-                  <input
-                    type="number"
-                    min="30"
-                    max="180"
-                    value={newSettings.roundTime}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? '' : parseInt(e.target.value);
-                      setNewSettings({...newSettings, roundTime: value});
-                    }}
-                    onBlur={(e) => {
-                      const value = parseInt(e.target.value) || 30;
-                      if (value > 180) {
-                        alert('Maximum round time is 180 seconds (3 minutes)');
-                        setNewSettings({...newSettings, roundTime: 180});
-                      } else if (value < 30) {
-                        setNewSettings({...newSettings, roundTime: 30});
-                      } else {
-                        setNewSettings({...newSettings, roundTime: value});
-                      }
-                    }}
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Min: 30s, Max: 180s (3 min)</p>
-                </div>
+                <NumberInput
+                  label="Rounds"
+                  value={newSettings.rounds}
+                  onChange={(val) => setNewSettings({...newSettings, rounds: val})}
+                  min={1}
+                  max={10}
+                />
+                <NumberInput
+                  label="Round Time (seconds)"
+                  value={newSettings.roundTime}
+                  onChange={(val) => setNewSettings({...newSettings, roundTime: val})}
+                  min={30}
+                  max={180}
+                  hint="Min: 30s, Max: 180s (3 min)"
+                />
                 <CustomDropdown
                   label="Difficulty"
                   value={newSettings.difficulty}
@@ -2482,7 +2531,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="w-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 px-6 py-3 rounded-xl font-bold transition-all"
+              className="w-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 px-6 py-3 rounded-xl font-bold transition-all active:scale-[0.98]"
             >
               <Settings className="w-5 h-5 inline mr-2" />
               {showSettings ? 'Hide Settings' : 'Change Settings'}
@@ -2501,7 +2550,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                 disabled={!canRestart}
                 className={`px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                   canRestart
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105 active:scale-95'
                     : 'bg-slate-600 cursor-not-allowed opacity-50'
                 }`}
               >
@@ -2511,7 +2560,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
               <button
                 onClick={leaveGame}
-                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105"
+                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-6 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 active:scale-95"
               >
                 Exit
               </button>
@@ -2678,7 +2727,9 @@ function App() {
     if (!gameId || !playerId || (screen !== 'game' && screen !== 'lobby')) return;
 
     const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
-    const DISCONNECT_THRESHOLD = 16000; // Consider disconnected after 16 seconds
+    // 65 seconds threshold to account for browser throttling background tabs
+    // (browsers may throttle setInterval to once per minute in background tabs)
+    const DISCONNECT_THRESHOLD = 65000;
 
     const sendHeartbeat = async () => {
       try {
@@ -2699,19 +2750,57 @@ function App() {
           return { ...p, connected: isConnected };
         });
 
-        // Auto-transfer host if current host has been disconnected for 60 seconds
-        const HOST_DISCONNECT_THRESHOLD = 60000;
+        // Auto-transfer host if current host has been disconnected for 120 seconds
+        const HOST_DISCONNECT_THRESHOLD = 120000;
         let newHost = game.host;
         const currentHost = updatedPlayers.find(p => p.id === game.host);
+
         if (currentHost && currentHost.lastSeen && (now - currentHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
           const newHostPlayer = updatedPlayers.find(p => p.connected === true);
           if (newHostPlayer && newHostPlayer.id !== game.host) {
             newHost = newHostPlayer.id;
-            console.log('Host disconnected for 60s, auto-transferring to:', newHostPlayer.name);
           }
         }
 
-        await window.storage.set(`game:${gameId}`, JSON.stringify({ ...game, players: updatedPlayers, host: newHost }), true);
+        // Only update if this player's data changed or host transfer needed
+        // This reduces race conditions by not overwriting other players' lastSeen unnecessarily
+        const existingPlayer = game.players.find(p => p.id === playerId);
+        const playerDataChanged = !existingPlayer ||
+          existingPlayer.lastSeen !== now ||
+          existingPlayer.connected !== true;
+        const hostChanged = newHost !== game.host;
+
+        if (playerDataChanged || hostChanged) {
+          // Re-read to minimize race condition window
+          const freshResult = await window.storage.get(`game:${gameId}`, true);
+          if (freshResult) {
+            const freshGame = JSON.parse(freshResult.value);
+
+            // Only update our own player's lastSeen and connected status
+            const mergedPlayers = freshGame.players.map(p => {
+              if (p.id === playerId) {
+                return { ...p, lastSeen: now, connected: true };
+              }
+              // For other players, use the freshest data but update connected status
+              const isConnected = p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD;
+              return { ...p, connected: isConnected };
+            });
+
+            // Only transfer host if still needed after re-read
+            let finalHost = freshGame.host;
+            if (hostChanged) {
+              const freshHost = mergedPlayers.find(p => p.id === freshGame.host);
+              if (freshHost && freshHost.lastSeen && (now - freshHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
+                const newHostPlayer = mergedPlayers.find(p => p.connected === true);
+                if (newHostPlayer && newHostPlayer.id !== freshGame.host) {
+                  finalHost = newHostPlayer.id;
+                }
+              }
+            }
+
+            await window.storage.set(`game:${gameId}`, JSON.stringify({ ...freshGame, players: mergedPlayers, host: finalHost }), true);
+          }
+        }
       } catch (err) {
         console.error('Heartbeat error:', err);
       }
@@ -3023,6 +3112,12 @@ function App() {
       nextDescriber = gameState.players[nextDescriberIndex].id;
     }
 
+    // Accumulate this round's submissions into allSubmissions
+    const updatedAllSubmissions = [
+      ...(gameState.allSubmissions || []),
+      ...(gameState.submissions || [])
+    ];
+
     await updateGame({
       roundEndTime: Date.now(),
       breakEndTime: Date.now() + (isLastRound ? 20000 : 10000), // 20 seconds for final summary, 10 for normal breaks
@@ -3030,7 +3125,17 @@ function App() {
       currentPlayingTeam: nextPlayingTeam,
       teamDescriberIndex,
       roundStartTime: null,
-      isLastRoundBreak: isLastRound // Flag to indicate this is the final round break
+      isLastRoundBreak: isLastRound, // Flag to indicate this is the final round break
+      allSubmissions: updatedAllSubmissions // Accumulate submissions at end of each round
+    });
+  };
+
+  // Initiate the 3-second countdown before starting round (synced to Firebase)
+  const initiateStartCountdown = async () => {
+    if (!gameState) return;
+    if (gameState.roundStartCountdownEnd) return; // Already counting down
+    await updateGame({
+      roundStartCountdownEnd: Date.now() + 3000 // 3 second countdown
     });
   };
 
@@ -3055,21 +3160,15 @@ function App() {
       newRound = gameState.currentRound + 1;
     }
 
-    // Accumulate submissions for final accuracy calculation
-    const allSubmissions = [
-      ...(gameState.allSubmissions || []),
-      ...(gameState.submissions || [])
-    ];
-
     await updateGame({
       currentRound: newRound,
       words,
       roundStartTime: Date.now(),
       roundEndTime: null,
       breakEndTime: null,
+      roundStartCountdownEnd: null, // Clear the countdown
       guesses: [],
-      submissions: [], // Clear for next round display
-      allSubmissions // Accumulate for final accuracy
+      submissions: [] // Clear for next round display (allSubmissions already accumulated in endRound)
     });
   };
 
@@ -3377,6 +3476,10 @@ function App() {
     ? Math.max(0, Math.floor((gameState.restartCountdownEnd - currentTime) / 1000))
     : 0;
 
+  const startCountdownRemaining = gameState?.roundStartCountdownEnd
+    ? Math.max(0, Math.floor((gameState.roundStartCountdownEnd - currentTime) / 1000))
+    : null;
+
   useEffect(() => {
     if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && isHost) {
       endRound();
@@ -3402,6 +3505,14 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restartCountdownRemaining, gameState?.restartCountdownEnd, isHost, gameState?.roundStartTime]);
+
+  // Handle round start countdown completion - describer triggers the round start
+  useEffect(() => {
+    if (gameState?.roundStartCountdownEnd && startCountdownRemaining === 0 && isDescriber && !gameState.roundStartTime) {
+      startNextRound();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startCountdownRemaining, gameState?.roundStartCountdownEnd, isDescriber, gameState?.roundStartTime]);
 
   if (screen === 'home') {
     return <HomeScreen
@@ -3452,7 +3563,8 @@ function App() {
       setGuessInput={setGuessInput}
       submitGuess={submitGuess}
       isHost={isHost}
-      startNextRound={startNextRound}
+      startNextRound={initiateStartCountdown}
+      startCountdown={startCountdownRemaining}
       skipTurn={skipTurn}
       leaveGame={leaveGame}
       logoutPlayer={logoutPlayer}

@@ -36,3 +36,93 @@
     transform: rotate(360deg);
   }
 }
+
+/* Custom scrollbar styling for dark theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.5) rgba(51, 65, 85, 0.3);
+}
+
+/* Hide default number input spinners for dark theme */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+.no-spinner {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+  display: none !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* Confetti animation for winner celebration */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall linear forwards;
+}
+
+/* Rich card styling with gradient and inner shadow */
+.card-rich {
+  background: linear-gradient(145deg, rgba(51, 65, 85, 0.5) 0%, rgba(30, 41, 59, 0.6) 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), inset 0 -1px 2px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-rich:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+    0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Button press micro-interaction */
+.btn-press {
+  transition: transform 0.1s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
