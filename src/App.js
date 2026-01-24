@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
