@@ -542,9 +542,20 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
                   min="30"
                   max="180"
                   value={settings.roundTime}
-                  onChange={(e) => setSettings({...settings, roundTime: parseInt(e.target.value)})}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 30;
+                    if (value > 180) {
+                      alert('Maximum round time is 180 seconds (3 minutes)');
+                      setSettings({...settings, roundTime: 180});
+                    } else if (value < 30) {
+                      setSettings({...settings, roundTime: 30});
+                    } else {
+                      setSettings({...settings, roundTime: value});
+                    }
+                  }}
                   className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                 />
+                <p className="text-xs text-slate-500 mt-1">Min: 30s, Max: 180s (3 min)</p>
               </div>
               <CustomDropdown
                 label="Difficulty"
@@ -1641,7 +1652,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                   {/* Host controls - always show during break */}
                   {isHost && availableDescribers.length > 0 && gameState.players.length >= 2 && (
                     <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-3">
-                      <span className="text-xs text-slate-400 block mb-2">{isDescriber ? 'Reassign describer:' : 'Assign describer:'}</span>
+                      <span className="text-xs text-slate-400 block mb-2">Change describer:</span>
                       <div className="flex flex-wrap gap-2">
                         {availableDescribers.map(p => (
                           <button
@@ -2392,17 +2403,17 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                     </p>
                   </div>
 
-                  {/* Accuracy */}
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs text-slate-400">Accuracy</p>
-                    <p className="text-sm font-semibold text-emerald-400">{accuracy}%</p>
-                  </div>
-
-                  {/* Score */}
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-amber-400">
-                      <AnimatedScore value={player.score} duration={1000 + idx * 200} />
-                    </p>
+                  {/* Accuracy & Score */}
+                  <div className="text-right flex items-center gap-3 sm:gap-4">
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-slate-400">Accuracy</p>
+                      <p className="text-xs sm:text-sm font-semibold text-emerald-400">{accuracy}%</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-amber-400">
+                        <AnimatedScore value={player.score} duration={1000 + idx * 200} />
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
@@ -2434,9 +2445,20 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                     min="30"
                     max="180"
                     value={newSettings.roundTime}
-                    onChange={(e) => setNewSettings({...newSettings, roundTime: parseInt(e.target.value)})}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 30;
+                      if (value > 180) {
+                        alert('Maximum round time is 180 seconds (3 minutes)');
+                        setNewSettings({...newSettings, roundTime: 180});
+                      } else if (value < 30) {
+                        setNewSettings({...newSettings, roundTime: 30});
+                      } else {
+                        setNewSettings({...newSettings, roundTime: value});
+                      }
+                    }}
                     className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-2 text-white"
                   />
+                  <p className="text-xs text-slate-500 mt-1">Min: 30s, Max: 180s (3 min)</p>
                 </div>
                 <CustomDropdown
                   label="Difficulty"
