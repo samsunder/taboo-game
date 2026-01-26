@@ -1550,7 +1550,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1912,38 +1912,37 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             </div>
           </div>
 
-          {/* Player Submissions */}
+          {/* Player Submissions - Compact chips layout matching active screen */}
           {(gameState.submissions || []).length > 0 && (
             <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md rounded-2xl p-5 border border-slate-500/30">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Users className="w-6 h-6 text-teal-400" />
                 Player Submissions
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-3">
                 {Object.values(submissionsByPlayer).map((playerData, idx) => {
                   const totalPoints = playerData.submissions.reduce((sum, s) => sum + (s.isCorrect ? s.points : 0), 0);
                   return (
-                    <div key={idx} className="bg-slate-800/60 rounded-xl p-4 border border-slate-600/40">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-cyan-300">{playerData.playerName}</h3>
-                        <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-full">
-                          +{totalPoints} pts
-                        </span>
+                    <div key={idx} className="bg-slate-700/30 border border-slate-600/30 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-semibold text-cyan-300">{playerData.playerName}</span>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">+{totalPoints} pts</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {playerData.submissions.map((sub, subIdx) => (
-                          <div
+                          <span
                             key={subIdx}
-                            className={`px-2.5 py-1.5 rounded-lg text-sm font-medium ${
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${
                               sub.isCorrect
-                                ? 'bg-emerald-500/30 border border-emerald-400/60 text-emerald-100'
+                                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
                                 : sub.isDuplicate
-                                  ? 'bg-slate-500/20 border border-slate-400/40 text-slate-400 italic'
-                                  : 'bg-red-500/20 border border-red-400/40 text-red-300/80 line-through'
+                                  ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 italic'
+                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
                             {sub.word}
-                          </div>
+                            {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -1982,7 +1981,17 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 relative">
+      {/* Bonus words notification */}
+      {bonusWordsNotification && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 font-bold">
+            <span className="text-xl">🔥</span>
+            <span>+4 Bonus Words Added!</span>
+            <span className="text-xl">🔥</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto space-y-4 py-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3 flex-wrap">
@@ -2192,7 +2201,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                                 ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
                                 : sub.isDuplicate
                                   ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 italic'
-                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30'
+                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
                             {sub.word}
@@ -2217,7 +2226,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                                 ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
                                 : sub.isDuplicate
                                   ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 italic'
-                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30'
+                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
                             {sub.word}
@@ -2713,6 +2722,7 @@ function App() {
   const [playerId, setPlayerId] = useState('');
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
+  const [bonusWordsNotification, setBonusWordsNotification] = useState(false);
   const isLeavingGame = useRef(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
@@ -3102,10 +3112,10 @@ function App() {
   const startGame = async () => {
     if (!gameState) return;
 
-    // Generate random words for the first round (20 words per round)
+    // Generate random words for the first round (16 words initially, can grow to 32)
     const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
     const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-    const words = shuffled.slice(0, 20);
+    const words = shuffled.slice(0, 16);
 
     // For team mode, set up the first describer from team 1
     let firstDescriber = gameState.currentDescriber;
@@ -3121,11 +3131,13 @@ function App() {
       }
     }
 
+    // Set up game with countdown (3 seconds) - roundStartTime will be set after countdown
     await updateGame({
       status: 'playing',
       currentRound: 1,
       words,
-      roundStartTime: Date.now(),
+      roundStartTime: null, // Will be set after countdown
+      roundStartCountdownEnd: Date.now() + 3000, // 3 second countdown
       roundEndTime: null,
       breakEndTime: null,
       guesses: [],
@@ -3136,6 +3148,15 @@ function App() {
       teamDescriberIndex
     });
     setScreen('game');
+  };
+
+  // Start the actual round after initial countdown (for first round only)
+  const startInitialRound = async () => {
+    if (!gameState) return;
+    await updateGame({
+      roundStartTime: Date.now(),
+      roundStartCountdownEnd: null
+    });
   };
 
   const submitGuess = async () => {
@@ -3197,11 +3218,42 @@ function App() {
         timestamp: Date.now()
       }];
 
-      await updateGame({
-        players: updatedPlayers,
-        guesses: newGuesses,
-        submissions: newSubmissions
-      });
+      // Check if we should add bonus words (80% guessed, max 32 words)
+      const guessedPercent = newGuesses.length / gameState.words.length;
+      const shouldAddBonusWords = guessedPercent >= 0.8 && gameState.words.length < 32;
+
+      if (shouldAddBonusWords) {
+        // Get 4 more unique words from the same difficulty pool
+        const existingWords = new Set(gameState.words.map(w => w.word.toLowerCase()));
+        const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
+        const availableWords = wordPool.filter(w => !existingWords.has(w.word.toLowerCase()));
+        const shuffled = [...availableWords].sort(() => Math.random() - 0.5);
+        const bonusWords = shuffled.slice(0, 4);
+
+        if (bonusWords.length > 0) {
+          const updatedWords = [...gameState.words, ...bonusWords];
+          await updateGame({
+            players: updatedPlayers,
+            guesses: newGuesses,
+            submissions: newSubmissions,
+            words: updatedWords
+          });
+          setBonusWordsNotification(true);
+          setTimeout(() => setBonusWordsNotification(false), 3000);
+        } else {
+          await updateGame({
+            players: updatedPlayers,
+            guesses: newGuesses,
+            submissions: newSubmissions
+          });
+        }
+      } else {
+        await updateGame({
+          players: updatedPlayers,
+          guesses: newGuesses,
+          submissions: newSubmissions
+        });
+      }
     } else {
       // Just record the incorrect submission
       await updateGame({
@@ -3288,10 +3340,10 @@ function App() {
   const startNextRound = async () => {
     if (!gameState) return;
 
-    // Generate new random words for this round (20 words per round)
+    // Generate new random words for this round (16 words initially, can grow to 32)
     const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
     const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-    const words = shuffled.slice(0, 20);
+    const words = shuffled.slice(0, 16);
 
     const isTeamMode = gameState.settings.teamMode;
 
@@ -3455,10 +3507,10 @@ function App() {
       // Reset all player scores
       const resetPlayers = gameState.players.map(p => ({ ...p, score: 0 }));
 
-      // Select new words for the first round (20 words per round)
+      // Select new words for the first round (16 words initially, can grow to 32)
       const wordPool = getWordsForDifficulty(newSettings.difficulty, 300);
       const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-      const words = shuffled.slice(0, 20);
+      const words = shuffled.slice(0, 16);
 
       // For team mode, set up the first describer from team 1
       let firstDescriber = connectedPlayers[0]?.id;
@@ -3655,7 +3707,15 @@ function App() {
   // Handle round start countdown completion - describer triggers the round start
   useEffect(() => {
     if (gameState?.roundStartCountdownEnd && startCountdownRemaining === 0 && isDescriber && !gameState.roundStartTime) {
-      startNextRound();
+      // Check if this is the initial round start (roundEndTime is null = never ended a round before)
+      // vs subsequent round (after break, roundEndTime has a value)
+      if (gameState.roundEndTime === null) {
+        // Initial game start - words already set by startGame, just start the timer
+        startInitialRound();
+      } else {
+        // Subsequent round - need to generate new words
+        startNextRound();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startCountdownRemaining, gameState?.roundStartCountdownEnd, isDescriber, gameState?.roundStartTime]);
@@ -3720,6 +3780,7 @@ function App() {
       promoteDescriber={promoteDescriber}
       transferHost={transferHost}
       switchTeam={switchTeam}
+      bonusWordsNotification={bonusWordsNotification}
     />;
   }
 
