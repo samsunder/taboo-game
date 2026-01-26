@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft, Pencil } from 'lucide-react';
 import { firebaseStorage } from './firebase';
 import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
 
@@ -10,8 +10,18 @@ window.storage = firebaseStorage;
 const PLAYER_NAME_MAX_LENGTH = 20;
 const PLAYER_NAME_MIN_LENGTH = 2;
 
-// Player emoji options
-const PLAYER_EMOJIS = ['😀', '😎', '🤓', '🦊', '🐱', '🐶', '🦄', '🚀', '⭐', '🎮', '🎯', '🔥'];
+// Player limits
+const MAX_PLAYERS_FFA = 12;
+const MAX_PLAYERS_TEAM = 12; // 6 per team
+const MAX_PLAYERS_PER_TEAM = 6;
+
+// Player emoji options - popular/fun ones first
+const PLAYER_EMOJIS = [
+  // Popular picks
+  '🎮', '🔥', '😎', '🦄', '🚀', '⭐',
+  // More options
+  '🦊', '🐱', '🐶', '🤓', '🎯', '😀', '👻', '🌈', '💎', '🎪'
+];
 
 // Custom Dropdown Component
 function CustomDropdown({ value, onChange, options, label }) {
@@ -538,20 +548,45 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
         {showEmojiPicker && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEmojiPicker(false)} />
-            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl">
+            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl min-w-[280px]">
               <h3 className="text-lg font-semibold text-center mb-4 text-slate-200">Choose your avatar</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {PLAYER_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
-                    className={`w-14 h-14 text-3xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
-                      playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+
+              {/* Popular picks */}
+              <div className="mb-3">
+                <p className="text-xs text-cyan-400 font-medium mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Popular
+                </p>
+                <div className="grid grid-cols-6 gap-2">
+                  {PLAYER_EMOJIS.slice(0, 6).map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                      className={`w-11 h-11 text-2xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                        playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* More options */}
+              <div>
+                <p className="text-xs text-slate-400 font-medium mb-2">More</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {PLAYER_EMOJIS.slice(6).map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                      className={`w-11 h-11 text-2xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                        playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -564,10 +599,13 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
               {/* Emoji Picker Button */}
               <button
                 onClick={() => setShowEmojiPicker(true)}
-                className="w-12 h-12 text-2xl bg-slate-900/50 border border-slate-600 rounded-xl hover:border-cyan-500 hover:scale-105 transition-all flex items-center justify-center"
-                title="Choose avatar"
+                className="relative w-12 h-12 text-2xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-cyan-500/50 rounded-xl hover:border-cyan-400 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 transition-all flex items-center justify-center group"
+                title="Click to choose avatar"
               >
                 {playerEmoji}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-md group-hover:bg-cyan-400 transition-colors">
+                  <Pencil className="w-3 h-3 text-slate-900" />
+                </div>
               </button>
               <input
                 type="text"
@@ -928,20 +966,45 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
         {showEmojiPicker && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEmojiPicker(false)} />
-            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl">
+            <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 shadow-2xl min-w-[280px]">
               <h3 className="text-lg font-semibold text-center mb-4 text-slate-200">Choose your avatar</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {PLAYER_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
-                    className={`w-14 h-14 text-3xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
-                      playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+
+              {/* Popular picks */}
+              <div className="mb-3">
+                <p className="text-xs text-cyan-400 font-medium mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Popular
+                </p>
+                <div className="grid grid-cols-6 gap-2">
+                  {PLAYER_EMOJIS.slice(0, 6).map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                      className={`w-11 h-11 text-2xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                        playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* More options */}
+              <div>
+                <p className="text-xs text-slate-400 font-medium mb-2">More</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {PLAYER_EMOJIS.slice(6).map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => { setPlayerEmoji(emoji); setShowEmojiPicker(false); }}
+                      className={`w-11 h-11 text-2xl rounded-xl transition-all hover:bg-slate-700 hover:scale-110 flex items-center justify-center ${
+                        playerEmoji === emoji ? 'bg-cyan-500/30 border-2 border-cyan-400 scale-110' : 'bg-slate-700/50'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -953,10 +1016,13 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
               {/* Emoji Picker Button */}
               <button
                 onClick={() => setShowEmojiPicker(true)}
-                className="w-12 h-12 text-2xl bg-slate-900/50 border border-slate-600 rounded-xl hover:border-cyan-500 hover:scale-105 transition-all flex items-center justify-center"
-                title="Choose avatar"
+                className="relative w-12 h-12 text-2xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-cyan-500/50 rounded-xl hover:border-cyan-400 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 transition-all flex items-center justify-center group"
+                title="Click to choose avatar"
               >
                 {playerEmoji}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-md group-hover:bg-cyan-400 transition-colors">
+                  <Pencil className="w-3 h-3 text-slate-900" />
+                </div>
               </button>
               <input
                 type="text"
@@ -1026,10 +1092,19 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                <div className={`bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2 ${
+                    (gamePreview.players?.length || 0) >= (gamePreview.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA) ? 'border border-red-500/50' : ''
+                  }`}>
                   <Users className="w-4 h-4 text-cyan-400" />
                   <span className="text-slate-400">Players:</span>
-                  <span className="font-medium text-white">{gamePreview.players?.length || 0}</span>
+                  <span className={`font-medium ${
+                    (gamePreview.players?.length || 0) >= (gamePreview.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA) ? 'text-red-400' : 'text-white'
+                  }`}>
+                    {gamePreview.players?.length || 0}/{gamePreview.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA}
+                  </span>
+                  {(gamePreview.players?.length || 0) >= (gamePreview.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA) && (
+                    <span className="text-xs text-red-400">(Full)</span>
+                  )}
                 </div>
                 <div className="bg-slate-800/50 rounded-lg px-3 py-2 flex items-center gap-2">
                   <Target className="w-4 h-4 text-teal-400" />
@@ -1085,15 +1160,17 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
 
           <button
             onClick={handleJoin}
-            disabled={!gamePreview || !playerName.trim() || nameError}
+            disabled={!gamePreview || !playerName.trim() || nameError || (gamePreview?.players?.length >= (gamePreview?.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA))}
             className={`w-full px-6 py-3 rounded-xl font-bold transition-all transform shadow-lg flex items-center justify-center gap-2 ${
-              gamePreview && playerName.trim()
+              gamePreview && playerName.trim() && (gamePreview?.players?.length < (gamePreview?.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA))
                 ? 'bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 hover:scale-105 shadow-cyan-500/20'
                 : 'bg-slate-700 text-slate-400 cursor-not-allowed'
             }`}
           >
             <Play className="w-5 h-5" />
-            {gamePreview?.status === 'playing' ? 'Join In Progress' : 'Join Game'}
+            {(gamePreview?.players?.length >= (gamePreview?.settings?.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA))
+              ? 'Game Full'
+              : (gamePreview?.status === 'playing' ? 'Join In Progress' : 'Join Game')}
           </button>
 
           <button
@@ -1166,7 +1243,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
             <div className={`backdrop-blur-md rounded-2xl p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
                 <Users className="w-5 h-5" />
-                Team 1 ({team1.length}/2+)
+                Team 1 ({team1.length}/{MAX_PLAYERS_PER_TEAM})
               </h3>
               <div className="space-y-2">
                 {team1.map(player => (
@@ -1197,7 +1274,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
             <div className={`backdrop-blur-md rounded-2xl p-6 border ${team2.length >= 2 ? 'bg-rose-500/20 border-rose-500/30' : 'bg-rose-500/10 border-rose-500/20'}`}>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-rose-300">
                 <Users className="w-5 h-5" />
-                Team 2 ({team2.length}/2+)
+                Team 2 ({team2.length}/{MAX_PLAYERS_PER_TEAM})
               </h3>
               <div className="space-y-2">
                 {team2.map(player => (
@@ -1230,7 +1307,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
           <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
               <Users className="w-5 h-5" />
-              Players ({gameState.players.length})
+              Players ({gameState.players.length}/{MAX_PLAYERS_FFA})
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {gameState.players.map(player => (
@@ -2082,47 +2159,79 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             </div>
           )}
 
-          {(gameState.submissions || []).length > 0 && (
-            <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
-              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-400" />
-                Submitted Words This Round
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                {(gameState.submissions || []).slice().reverse().map((submission, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex items-center justify-between px-4 py-2 rounded-lg border ${
-                      submission.isCorrect
-                        ? 'bg-emerald-500/20 border-emerald-500/30'
-                        : submission.isDuplicate
-                          ? 'bg-slate-500/10 border-slate-500/20'
-                          : 'bg-red-500/10 border-red-500/20'
-                    }`}
-                  >
-                    <span className="font-semibold">{submission.playerName}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={
-                        submission.isCorrect
-                          ? 'text-emerald-300'
-                          : submission.isDuplicate
-                            ? 'text-slate-400 italic'
-                            : 'text-red-300/60'
-                      }>
-                        {submission.word}
-                      </span>
-                      {submission.isCorrect && (
-                        <span className="text-amber-400 text-sm">+{submission.points}</span>
-                      )}
-                      {submission.isDuplicate && (
-                        <span className="text-slate-500 text-xs">(already guessed)</span>
-                      )}
+          {(gameState.submissions || []).length > 0 && (() => {
+            // Group submissions by player
+            const submissionsByPlayer = (gameState.submissions || []).reduce((acc, sub) => {
+              if (!acc[sub.playerId]) {
+                acc[sub.playerId] = { playerName: sub.playerName, words: [] };
+              }
+              acc[sub.playerId].words.push(sub);
+              return acc;
+            }, {});
+
+            const mySubmissions = submissionsByPlayer[playerId];
+            const otherPlayers = Object.entries(submissionsByPlayer).filter(([id]) => id !== playerId);
+
+            return (
+              <div className="card-rich backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-slate-700">
+                <h3 className="text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-amber-400" />
+                  Submitted Words This Round
+                </h3>
+                <div className="space-y-3 max-h-56 overflow-y-auto custom-scrollbar">
+                  {/* Your guesses first */}
+                  {mySubmissions && (
+                    <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-3">
+                      <div className="text-xs text-cyan-400 font-semibold mb-2">Your Guesses</div>
+                      <div className="flex flex-wrap gap-2">
+                        {mySubmissions.words.map((sub, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${
+                              sub.isCorrect
+                                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                                : sub.isDuplicate
+                                  ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 italic'
+                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30'
+                            }`}
+                          >
+                            {sub.word}
+                            {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
+                            {sub.isDuplicate && <span className="text-slate-500 text-xs">✓</span>}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )}
+
+                  {/* Other players */}
+                  {otherPlayers.map(([id, data]) => (
+                    <div key={id} className="bg-slate-700/30 border border-slate-600/30 rounded-xl p-3">
+                      <div className="text-xs text-slate-400 font-semibold mb-2">{data.playerName}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {data.words.map((sub, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${
+                              sub.isCorrect
+                                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                                : sub.isDuplicate
+                                  ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 italic'
+                                  : 'bg-red-500/20 text-red-300/70 border border-red-500/30'
+                            }`}
+                          >
+                            {sub.word}
+                            {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
+                            {sub.isDuplicate && <span className="text-slate-500 text-xs">✓</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -2396,6 +2505,18 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
         {/* Podium for top 3 (non-team mode) - Real podium layout */}
         {!isTeamMode && sortedPlayers.length >= 3 && (
           <div className="relative flex items-end justify-center gap-1 h-56 mt-4">
+            {/* Winner spotlight glow effect */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none">
+              <div
+                className="w-56 h-56 rounded-full blur-3xl animate-spotlight opacity-70"
+                style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(245,158,11,0.3) 40%, transparent 70%)' }}
+              />
+              <div
+                className="absolute top-8 left-8 w-40 h-40 rounded-full blur-2xl"
+                style={{ background: 'radial-gradient(circle, rgba(252,211,77,0.4) 0%, transparent 60%)' }}
+              />
+            </div>
+
             {/* 2nd Place - Left */}
             <div className="flex flex-col items-center z-10">
               <div className="relative mb-2">
@@ -2447,19 +2568,24 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
             {sortedPlayers.map((player, idx) => {
               const accuracy = getPlayerAccuracy(player.id);
               const playerTitle = getPlayerTitle(player, sortedPlayers, submissions, idx === 0 && !isTeamMode);
+              const isCurrentPlayer = player.id === playerId;
 
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all relative ${
                     !isTeamMode && idx === 0 ? 'bg-amber-500/15 border border-amber-500/30' :
                     !isTeamMode && idx === 1 ? 'bg-slate-400/10 border border-slate-500/20' :
                     !isTeamMode && idx === 2 ? 'bg-orange-600/15 border border-orange-600/20' :
                     isTeamMode && player.team === 1 ? 'bg-cyan-500/10 border border-cyan-500/20' :
                     isTeamMode && player.team === 2 ? 'bg-rose-500/10 border border-rose-500/20' :
                     'bg-slate-700/20 border border-slate-700/30'
-                  }`}
+                  } ${isCurrentPlayer ? 'ring-2 ring-cyan-400/60 ring-offset-1 ring-offset-slate-900 shadow-lg shadow-cyan-500/20' : ''}`}
                 >
+                  {/* "You" indicator */}
+                  {isCurrentPlayer && (
+                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-cyan-400 rounded-full" />
+                  )}
                   {/* Rank */}
                   {!isTeamMode && (
                     <span className="text-sm font-bold w-6 text-center text-slate-400">
@@ -2892,6 +3018,26 @@ function App() {
         existingPlayer.emoji = playerEmoji;
         console.log('Player reconnecting:', playerName, 'Score:', existingPlayer.score);
       } else {
+        // Check player limits
+        const maxPlayers = game.settings.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA;
+        if (game.players.length >= maxPlayers) {
+          alert(`Game is full! Maximum ${maxPlayers} players allowed.`);
+          return;
+        }
+
+        // In team mode, also check per-team limit
+        if (game.settings.teamMode) {
+          const team1Count = game.players.filter(p => p.team === 1).length;
+          const team2Count = game.players.filter(p => p.team === 2).length;
+          const assignToTeam = team1Count <= team2Count ? 1 : 2;
+          const targetTeamCount = assignToTeam === 1 ? team1Count : team2Count;
+
+          if (targetTeamCount >= MAX_PLAYERS_PER_TEAM) {
+            alert(`Both teams are full! Maximum ${MAX_PLAYERS_PER_TEAM} players per team.`);
+            return;
+          }
+        }
+
         const newPlayerId = generateId();
         const teamAssignment = game.settings.teamMode
           ? (game.players.filter(p => p.team === 1).length <= game.players.filter(p => p.team === 2).length ? 1 : 2)

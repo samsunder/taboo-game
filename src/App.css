@@ -126,3 +126,19 @@ input[type="number"] {
 .btn-press:active {
   transform: scale(0.97);
 }
+
+/* Winner spotlight glow effect */
+@keyframes spotlight-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.animate-spotlight {
+  animation: spotlight-pulse 3s ease-in-out infinite;
+}
