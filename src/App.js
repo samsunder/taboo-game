@@ -485,8 +485,8 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
             />
           </svg>
           <div className="absolute top-0 left-0 w-32 h-24 md:w-52 md:h-36 flex flex-col items-center justify-center px-2">
-            <span className="text-xl md:text-3xl mb-1 animate-content-pop">🤔</span>
-            <span className="text-[9px] md:text-xs font-semibold text-cyan-300 tracking-wide text-center leading-tight animate-text-fade">Think fast! ⚡<br/>Speak smart!</span>
+            <span className="text-2xl md:text-3xl mb-1 animate-content-pop">⚡</span>
+            <span className="text-[10px] md:text-sm font-bold text-cyan-200 tracking-tight text-center leading-snug animate-text-fade">Fast-paced<br/>word fun!</span>
           </div>
         </div>
       </div>
@@ -509,8 +509,8 @@ function HomeScreen({ playerName, setPlayerName, playerEmoji, setPlayerEmoji, se
             />
           </svg>
           <div className="absolute top-0 left-0 w-28 h-24 md:w-48 md:h-36 flex flex-col items-center justify-center px-2">
-            <span className="text-xl md:text-3xl mb-1 animate-content-pop-delayed">🎉</span>
-            <span className="text-[9px] md:text-xs font-semibold text-teal-300 tracking-wide text-center leading-tight animate-text-fade-delayed">Play live.<br/>Laugh louder.</span>
+            <span className="text-2xl md:text-3xl mb-1 animate-content-pop-delayed">🎮</span>
+            <span className="text-[10px] md:text-sm font-bold text-teal-200 tracking-tight text-center leading-snug animate-text-fade-delayed">Play together,<br/>win together!</span>
           </div>
         </div>
       </div>
@@ -1984,11 +1984,25 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 relative">
       {/* Bonus words notification */}
       {bonusWordsNotification && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 font-bold">
-            <span className="text-xl">🔥</span>
-            <span>+4 Bonus Words Added!</span>
-            <span className="text-xl">🔥</span>
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none px-4 w-full max-w-md">
+          <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-white px-5 py-3 md:px-6 md:py-3 rounded-xl shadow-2xl animate-[bounce_0.5s_ease-in-out_3] relative">
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-orange-400 rounded-xl blur-xl opacity-60 animate-pulse"></div>
+
+            {/* Content */}
+            <div className="relative flex items-center justify-center gap-2">
+              <div className="flex items-center gap-1 text-xl md:text-2xl">
+                <span className="animate-[spin_1s_ease-in-out]">🔥</span>
+                <span className="animate-[spin_1s_ease-in-out_0.2s]">⚡</span>
+              </div>
+              <div className="text-center">
+                <div className="text-base md:text-xl font-black tracking-tight">+4 BONUS WORDS!</div>
+              </div>
+              <div className="flex items-center gap-1 text-xl md:text-2xl">
+                <span className="animate-[spin_1s_ease-in-out_0.4s]">✨</span>
+                <span className="animate-[spin_1s_ease-in-out_0.6s]">🔥</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2722,9 +2736,11 @@ function App() {
   const [playerId, setPlayerId] = useState('');
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
-  const [bonusWordsNotification, setBonusWordsNotification] = useState(false);
   const isLeavingGame = useRef(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Compute bonus notification visibility from game state
+  const bonusWordsNotification = gameState?.bonusWordsNotificationEnd && currentTime < gameState.bonusWordsNotificationEnd;
 
   // Update current time every second for timer display
   useEffect(() => {
@@ -3255,10 +3271,9 @@ function App() {
             players: updatedPlayers,
             guesses: newGuesses,
             submissions: newSubmissions,
-            words: updatedWords
+            words: updatedWords,
+            bonusWordsNotificationEnd: Date.now() + 3000 // Show notification for 3 seconds to all players
           });
-          setBonusWordsNotification(true);
-          setTimeout(() => setBonusWordsNotification(false), 3000);
         } else {
           await updateGame({
             players: updatedPlayers,
