@@ -3099,9 +3099,28 @@ function App() {
     try {
       const result = await window.storage.get(`game:${gameId}`, true);
       if (!result) return;
-      
+
       const game = JSON.parse(result.value);
-      const updatedGame = { ...game, ...updates };
+
+      // If updates include players, preserve their fresh lastSeen and connected status
+      // to avoid race conditions with the heartbeat system
+      let finalUpdates = updates;
+      if (updates.players && game.players) {
+        finalUpdates = {
+          ...updates,
+          players: updates.players.map(updatedPlayer => {
+            const freshPlayer = game.players.find(p => p.id === updatedPlayer.id);
+            // Preserve heartbeat data (lastSeen, connected) from database, keep everything else from update
+            return {
+              ...updatedPlayer,
+              lastSeen: freshPlayer?.lastSeen || updatedPlayer.lastSeen,
+              connected: freshPlayer?.connected !== undefined ? freshPlayer.connected : updatedPlayer.connected
+            };
+          })
+        };
+      }
+
+      const updatedGame = { ...game, ...finalUpdates };
       await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
       setGameState(updatedGame);
     } catch (err) {
