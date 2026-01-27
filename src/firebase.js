@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get, onValue, remove } from "firebase/database";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import { getAnalytics } from "firebase/analytics";
 
 // Game expiry in days
 const GAME_EXPIRY_DAYS = 3;
@@ -15,13 +16,15 @@ const firebaseConfig = {
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
   databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
+const analytics = getAnalytics(app);
 
 // Initialize App Check with reCAPTCHA v3
 // This protects your Firebase resources from abuse
@@ -194,4 +197,4 @@ export const firebaseStorage = {
   }
 };
 
-export { database };
+export { database, analytics };
