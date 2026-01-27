@@ -1185,7 +1185,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
   );
 }
 
-function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam }) {
+function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam, isPlayerConnected }) {
   if (!gameState) return null;
 
   const team1 = gameState.players.filter(p => p.team === 1);
@@ -1349,7 +1349,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
   );
 }
 
-function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, availableDescribers = [] }) {
+function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, availableDescribers = [], isPlayerConnected }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -1415,14 +1415,14 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-sm flex-shrink-0">{player.emoji || '😀'}</span>
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${player.connected !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isPlayerConnected(player) ? 'bg-emerald-400' : 'bg-red-400'}`} />
                       {player.id === gameState.host && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
                       {gameState.settings.teamMode && player.team && (
                         <span className={`text-[10px] font-bold px-1 py-0.5 rounded flex-shrink-0 ${player.team === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
                           T{player.team}
                         </span>
                       )}
-                      <span className={`text-sm truncate ${player.connected === false ? 'text-slate-500' : ''}`}>
+                      <span className={`text-sm truncate ${!isPlayerConnected(player) ? 'text-slate-500' : ''}`}>
                         {player.name}{player.id === playerId && ' (You)'}
                       </span>
                     </div>
@@ -1550,7 +1550,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1562,13 +1562,14 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
       copyGameLink={copyGameLink}
       kickPlayer={kickPlayer}
       transferHost={transferHost}
+      isPlayerConnected={isPlayerConnected}
     />;
   }
 
   const player = gameState.players.find(p => p.id === playerId);
   const describer = gameState.players.find(p => p.id === gameState.currentDescriber);
-  const isDescriberOffline = describer && describer.connected === false;
-  const onlinePlayers = gameState.players.filter(p => p.connected !== false);
+  const isDescriberOffline = describer && !isPlayerConnected(describer);
+  const onlinePlayers = gameState.players.filter(p => isPlayerConnected(p));
   // In team mode, only players from the current playing team can be made describer
   const availableDescribers = onlinePlayers.filter(p =>
     p.id !== gameState.currentDescriber &&
@@ -1701,6 +1702,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             transferHost={transferHost}
             switchTeam={switchTeam}
             availableDescribers={availableDescribers}
+            isPlayerConnected={isPlayerConnected}
           />
         </div>
 
@@ -2043,6 +2045,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             transferHost={transferHost}
             switchTeam={switchTeam}
             availableDescribers={availableDescribers}
+            isPlayerConnected={isPlayerConnected}
           />
         </div>
 
@@ -2375,7 +2378,7 @@ function getPlayerTitle(player, allPlayers, submissions, isWinner) {
   return { title: 'Player', icon: '🎮', color: 'text-slate-400' };
 }
 
-function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, logoutPlayer, copyGameLink, kickPlayer, transferHost }) {
+function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, logoutPlayer, copyGameLink, kickPlayer, transferHost, isPlayerConnected }) {
   const [showSettings, setShowSettings] = useState(false);
   const [newSettings, setNewSettings] = useState(gameState?.settings || { rounds: 3, roundTime: 60, difficulty: 'mixed', teamMode: false });
   const [showConfetti, setShowConfetti] = useState(true);
@@ -2389,7 +2392,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
   const isTeamMode = gameState.settings.teamMode;
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
-  const connectedPlayers = gameState.players.filter(p => p.connected !== false);
+  const connectedPlayers = gameState.players.filter(p => isPlayerConnected(p));
   const canRestart = connectedPlayers.length >= 2;
   // Use allSubmissions for final stats (includes all rounds), fallback to submissions for compatibility
   const submissions = gameState.allSubmissions || gameState.submissions || [];
@@ -2461,6 +2464,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
           transferHost={transferHost}
           switchTeam={() => {}} // Not needed in results screen
           availableDescribers={[]} // Not needed in results screen
+          isPlayerConnected={isPlayerConnected}
         />
       </div>
 
@@ -2742,6 +2746,14 @@ function App() {
   // Compute bonus notification visibility from game state
   const bonusWordsNotification = gameState?.bonusWordsNotificationEnd && currentTime < gameState.bonusWordsNotificationEnd;
 
+  // Helper: Compute if a player is connected based on their lastSeen timestamp
+  // This avoids race conditions from storing connected status in Firebase
+  const DISCONNECT_THRESHOLD = 65000; // 65 seconds
+  const isPlayerConnected = (player) => {
+    if (!player || !player.lastSeen) return false;
+    return (currentTime - player.lastSeen) < DISCONNECT_THRESHOLD;
+  };
+
   // Update current time every second for timer display
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2891,35 +2903,27 @@ function App() {
         const game = JSON.parse(result.value);
         const now = Date.now();
 
-        // Update all players' connection status
-        const updatedPlayers = game.players.map(p => {
-          if (p.id === playerId) {
-            // Current player: update lastSeen and mark as connected
-            return { ...p, lastSeen: now, connected: true };
-          }
-          // Other players: check if they've sent a heartbeat recently
-          const isConnected = p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD;
-          return { ...p, connected: isConnected };
-        });
+        // Only update current player's lastSeen to avoid race conditions
+        // Don't recalculate other players' status here (UI will compute from lastSeen)
 
         // Auto-transfer host if current host has been disconnected for 120 seconds
         const HOST_DISCONNECT_THRESHOLD = 120000;
         let newHost = game.host;
-        const currentHost = updatedPlayers.find(p => p.id === game.host);
+        const currentHost = game.players.find(p => p.id === game.host);
 
         if (currentHost && currentHost.lastSeen && (now - currentHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
-          const newHostPlayer = updatedPlayers.find(p => p.connected === true);
+          // Find a connected player to transfer host to
+          const newHostPlayer = game.players.find(p =>
+            p.id !== game.host && p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD
+          );
           if (newHostPlayer && newHostPlayer.id !== game.host) {
             newHost = newHostPlayer.id;
           }
         }
 
         // Only update if this player's data changed or host transfer needed
-        // This reduces race conditions by not overwriting other players' lastSeen unnecessarily
         const existingPlayer = game.players.find(p => p.id === playerId);
-        const playerDataChanged = !existingPlayer ||
-          existingPlayer.lastSeen !== now ||
-          existingPlayer.connected !== true;
+        const playerDataChanged = !existingPlayer || existingPlayer.lastSeen !== now;
         const hostChanged = newHost !== game.host;
 
         if (playerDataChanged || hostChanged) {
@@ -2928,22 +2932,22 @@ function App() {
           if (freshResult) {
             const freshGame = JSON.parse(freshResult.value);
 
-            // Only update our own player's lastSeen and connected status
+            // Only update our own player's lastSeen (don't recalculate others)
             const mergedPlayers = freshGame.players.map(p => {
               if (p.id === playerId) {
-                return { ...p, lastSeen: now, connected: true };
+                return { ...p, lastSeen: now };
               }
-              // For other players, use the freshest data but update connected status
-              const isConnected = p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD;
-              return { ...p, connected: isConnected };
+              return p;
             });
 
             // Only transfer host if still needed after re-read
             let finalHost = freshGame.host;
             if (hostChanged) {
-              const freshHost = mergedPlayers.find(p => p.id === freshGame.host);
+              const freshHost = freshGame.players.find(p => p.id === freshGame.host);
               if (freshHost && freshHost.lastSeen && (now - freshHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
-                const newHostPlayer = mergedPlayers.find(p => p.connected === true);
+                const newHostPlayer = freshGame.players.find(p =>
+                  p.id !== freshGame.host && p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD
+                );
                 if (newHostPlayer && newHostPlayer.id !== freshGame.host) {
                   finalHost = newHostPlayer.id;
                 }
@@ -3129,8 +3133,7 @@ function App() {
             // Preserve heartbeat data (lastSeen, connected) from database, keep everything else from update
             return {
               ...updatedPlayer,
-              lastSeen: freshPlayer?.lastSeen || updatedPlayer.lastSeen,
-              connected: freshPlayer?.connected !== undefined ? freshPlayer.connected : updatedPlayer.connected
+              lastSeen: freshPlayer?.lastSeen || updatedPlayer.lastSeen
             };
           })
         };
@@ -3531,7 +3534,7 @@ function App() {
     if (!gameState || !isHost) return;
 
     // Check if there are at least 2 connected players
-    const connectedPlayers = gameState.players.filter(p => p.connected !== false);
+    const connectedPlayers = gameState.players.filter(p => isPlayerConnected(p));
     if (connectedPlayers.length < 2) {
       alert('Cannot restart game! You need at least 2 connected players to play. Please wait for more players to join.');
       return;
@@ -3788,6 +3791,7 @@ function App() {
       startGame={startGame}
       leaveGame={leaveGame}
       switchTeam={switchTeam}
+      isPlayerConnected={isPlayerConnected}
     />;
   }
 
@@ -3815,6 +3819,7 @@ function App() {
       transferHost={transferHost}
       switchTeam={switchTeam}
       bonusWordsNotification={bonusWordsNotification}
+      isPlayerConnected={isPlayerConnected}
     />;
   }
 
