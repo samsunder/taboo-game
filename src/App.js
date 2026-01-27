@@ -2763,49 +2763,66 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const savedPlayerId = window.localStorage.getItem('taboo_player_id');
-    if (savedPlayerId) setPlayerId(savedPlayerId);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const gameParam = urlParams.get('game');
-    if (gameParam) {
-      setGameId(gameParam);
-
-      // Check if game exists and if player is already in it
-      window.storage.get(`game:${gameParam}`, true).then(result => {
-        if (result) {
-          const game = JSON.parse(result.value);
-
-          // Check if game is stale/corrupted (no players or no host)
-          const isStaleGame = !game.players || game.players.length === 0 || !game.host;
-          if (isStaleGame) {
-            console.log('Stale game detected, redirecting to home');
-            window.history.replaceState({}, '', window.location.pathname);
-            setGameId('');
-            alert('This game session has expired. Please create or join a new game.');
-            setScreen('home');
-            return;
-          }
-
-          // Check if all players have been offline for too long (zombie game)
-          const ZOMBIE_THRESHOLD = 30 * 60 * 1000; // 30 minutes
-          const now = Date.now();
-          const allPlayersOfflineTooLong = game.players.every(p => {
-            if (!p.lastSeen) return true; // No lastSeen means never connected properly
-            return (now - p.lastSeen) > ZOMBIE_THRESHOLD;
+    // Wait for Firebase auth to be ready, then use Firebase UID as player ID
+    const initPlayerId = async () => {
+      try {
+        let user = firebaseStorage.getCurrentUser();
+        if (!user) {
+          // Wait for auth to complete
+          user = await new Promise((resolve) => {
+            const checkAuth = setInterval(() => {
+              const currentUser = firebaseStorage.getCurrentUser();
+              if (currentUser) {
+                clearInterval(checkAuth);
+                resolve(currentUser);
+              }
+            }, 100);
           });
-          if (allPlayersOfflineTooLong) {
-            console.log('Zombie game detected (all players offline 30+ min), redirecting to home');
-            window.history.replaceState({}, '', window.location.pathname);
-            setGameId('');
-            alert('This game session has expired. All players have been inactive for too long.');
-            setScreen('home');
-            return;
-          }
+        }
 
-          // Check if saved player is in this game
-          if (savedPlayerId) {
-            const existingPlayer = game.players.find(p => p.id === savedPlayerId);
+        const firebaseUid = user.uid;
+        setPlayerId(firebaseUid);
+
+        // After playerId is set, check URL for game param
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameParam = urlParams.get('game');
+        if (gameParam) {
+          setGameId(gameParam);
+
+          // Check if game exists and if player is already in it
+          const result = await window.storage.get(`game:${gameParam}`, true);
+          if (result) {
+            const game = JSON.parse(result.value);
+
+            // Check if game is stale/corrupted (no players or no host)
+            const isStaleGame = !game.players || game.players.length === 0 || !game.host;
+            if (isStaleGame) {
+              console.log('Stale game detected, redirecting to home');
+              window.history.replaceState({}, '', window.location.pathname);
+              setGameId('');
+              alert('This game session has expired. Please create or join a new game.');
+              setScreen('home');
+              return;
+            }
+
+            // Check if all players have been offline for too long (zombie game)
+            const ZOMBIE_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+            const now = Date.now();
+            const allPlayersOfflineTooLong = game.players.every(p => {
+              if (!p.lastSeen) return true; // No lastSeen means never connected properly
+              return (now - p.lastSeen) > ZOMBIE_THRESHOLD;
+            });
+            if (allPlayersOfflineTooLong) {
+              console.log('Zombie game detected (all players offline 30+ min), redirecting to home');
+              window.history.replaceState({}, '', window.location.pathname);
+              setGameId('');
+              alert('This game session has expired. All players have been inactive for too long.');
+              setScreen('home');
+              return;
+            }
+
+            // Check if player is in this game using Firebase UID
+            const existingPlayer = game.players.find(p => p.id === firebaseUid);
 
             if (existingPlayer) {
               // Player is already in the game - rejoin directly
@@ -2822,24 +2839,23 @@ function App() {
               }
               return;
             }
+            // Game exists but player not in it - show join screen
+            setScreen('join');
+          } else {
+            // Game doesn't exist - clear URL and show home with message
+            console.log('Game not found, redirecting to home');
+            window.history.replaceState({}, '', window.location.pathname);
+            setGameId('');
+            alert('This game no longer exists. It may have expired or been deleted.');
+            setScreen('home');
           }
-          // Game exists but player not in it - show join screen
-          setScreen('join');
-        } else {
-          // Game doesn't exist - clear URL and show home with message
-          console.log('Game not found, redirecting to home');
-          window.history.replaceState({}, '', window.location.pathname);
-          setGameId('');
-          alert('This game no longer exists. It may have expired or been deleted.');
-          setScreen('home');
         }
-      }).catch(() => {
-        // Error fetching game - clear URL and show home
-        window.history.replaceState({}, '', window.location.pathname);
-        setGameId('');
-        setScreen('home');
-      });
-    }
+      } catch (err) {
+        console.error('Failed to initialize player ID:', err);
+      }
+    };
+
+    initPlayerId();
   }, []);
 
   // Subscribe to real-time updates from Firebase
@@ -2854,14 +2870,11 @@ function App() {
           console.log('Real-time update:', newState.players.length, 'players', newState.players.map(p => p.name), 'status:', newState.status);
 
           // Check if current player was kicked (but not if they left voluntarily)
-          const currentPlayerId = window.localStorage.getItem('taboo_player_id');
-          const playerStillInGame = newState.players.some(p => p.id === currentPlayerId);
+          const playerStillInGame = newState.players.some(p => p.id === playerId);
 
-          if (!playerStillInGame && currentPlayerId && !isLeavingGame.current) {
+          if (!playerStillInGame && playerId && !isLeavingGame.current) {
             console.log('Player was kicked from the game');
             alert('You have been removed from the game by the host.');
-            window.localStorage.removeItem('taboo_player_id');
-            setPlayerId('');
             setPlayerName('');
             setScreen('home');
             setGameId('');
@@ -2974,8 +2987,15 @@ function App() {
   const generateId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
   const createGame = async (settings) => {
+    // Wait for Firebase auth and use UID as player ID
+    const user = firebaseStorage.getCurrentUser();
+    if (!user) {
+      alert('Authentication not ready. Please try again.');
+      return;
+    }
+
     const newGameId = generateId();
-    const newPlayerId = generateId();
+    const newPlayerId = user.uid; // Use Firebase UID instead of random ID
 
     const game = {
       id: newGameId,
@@ -3001,7 +3021,7 @@ function App() {
       await window.storage.set(`game:${newGameId}`, JSON.stringify(game), true);
       setGameId(newGameId);
       setPlayerId(newPlayerId);
-      window.localStorage.setItem('taboo_player_id', newPlayerId);
+      // No need to store in localStorage anymore - using Firebase UID
       setGameState(game);
       setScreen('lobby');
 
@@ -3026,6 +3046,12 @@ function App() {
   const joinGame = async () => {
     if (!gameId || !playerName) {
       alert('Please enter your name and game code');
+      return;
+    }
+
+    // Ensure we have a Firebase UID
+    if (!playerId) {
+      alert('Authentication not ready. Please try again.');
       return;
     }
 
@@ -3068,20 +3094,19 @@ function App() {
           }
         }
 
-        const newPlayerId = generateId();
+        // Use Firebase UID (already stored in playerId state)
         const teamAssignment = game.settings.teamMode
           ? (game.players.filter(p => p.team === 1).length <= game.players.filter(p => p.team === 2).length ? 1 : 2)
           : null;
 
         game.players.push({
-          id: newPlayerId,
+          id: playerId, // Use Firebase UID from state
           name: playerName,
           emoji: playerEmoji,
           score: 0,
           team: teamAssignment
         });
-        setPlayerId(newPlayerId);
-        window.localStorage.setItem('taboo_player_id', newPlayerId);
+        // No need to update localStorage anymore
       }
 
       console.log('Saving updated game with', game.players.length, 'players:', game.players.map(p => p.name));
@@ -3446,9 +3471,9 @@ function App() {
 
     // Remove player from the game if we have game state
     if (gameState && playerId) {
-      // Clear localStorage first to prevent the Firebase listener from
+      // Set flag to prevent the Firebase listener from
       // showing "removed by host" alert when we remove ourselves
-      window.localStorage.removeItem('taboo_player_id');
+      isLeavingGame.current = true;
 
       try {
         const updatedPlayers = gameState.players.filter(p => p.id !== playerId);
@@ -3513,11 +3538,7 @@ function App() {
         currentDescriber: newDescriber
       });
 
-      // Clear local storage
-      window.localStorage.removeItem('taboo_player_id');
-
-      // Reset local state
-      setPlayerId('');
+      // Reset local state (but keep playerId as it's tied to Firebase Auth)
       setPlayerName('');
       setScreen('home');
       setGameId('');
