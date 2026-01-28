@@ -1,8 +1,53 @@
 {
   "rules": {
+    "games": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('games').child($gameId).child('host').val() == auth.uid || root.child('games').child($gameId).child('currentDescriber').val() == auth.uid || !data.exists())",
+        ".indexOn": ["createdAt", "status"]
+      }
+    },
+    "players": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('games').child($gameId).child('host').val() == auth.uid || !root.child('games').child($gameId).exists())",
+        "$playerId": {
+          ".write": "auth != null && auth.uid == $playerId",
+          "lastSeen": {
+            ".validate": "newData.isNumber()"
+          }
+        }
+      }
+    },
+    "words": {
+      "$gameId": {
+        ".read": "auth != null && data.child('describer').val() == auth.uid",
+        ".write": "false"
+      }
+    },
+    "submissions": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('games').child($gameId).child('host').val() == auth.uid || !root.child('games').child($gameId).exists())"
+      }
+    },
+    "guesses": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('games').child($gameId).child('host').val() == auth.uid || !root.child('games').child($gameId).exists())"
+      }
+    },
+    "rateLimits": {
+      "$uid": {
+        "lastWrite": {
+          ".write": "auth.uid == $uid",
+          ".validate": "newData.val() == now"
+        }
+      }
+    },
     "$key": {
       ".read": "auth != null && $key.beginsWith('game:')",
-      ".write": "auth != null && $key.beginsWith('game:')",
+      ".write": "auth != null && $key.beginsWith('game:') && (root.child($key).child('host').val() == auth.uid || !root.child($key).exists())",
       ".validate": "newData.isString() && newData.val().length <= 50000"
     }
   }

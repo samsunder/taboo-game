@@ -5,6 +5,10 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "hosting": {
     "public": "build",
     "ignore": [
@@ -18,5 +22,20 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "database": {
+      "port": 9001
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
   }
 }
