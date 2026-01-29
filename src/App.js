@@ -3695,11 +3695,12 @@ function App() {
     : null;
 
   useEffect(() => {
-    if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && isHost) {
+    // Allow both host and describer to end round - prevents game getting stuck if host disconnects mid-round
+    if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && (isHost || isDescriber)) {
       endRound();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost]);
+  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost, isDescriber]);
 
   // Handle transition from last round break to finished state
   useEffect(() => {

@@ -55,6 +55,8 @@ const initAuth = async () => {
         authReady = true;
         authReadyResolve();
         console.log('Authenticated anonymously:', user.uid);
+        // Pre-warm cloud functions in background (non-blocking)
+        cloudFunctions.warmup().catch(() => {});
         resolve(user);
       } else {
         try {
@@ -63,6 +65,8 @@ const initAuth = async () => {
           authReady = true;
           authReadyResolve();
           console.log('Signed in anonymously:', result.user.uid);
+          // Pre-warm cloud functions in background (non-blocking)
+          cloudFunctions.warmup().catch(() => {});
           resolve(result.user);
         } catch (error) {
           console.error('Anonymous auth failed:', error);
@@ -332,6 +336,13 @@ export const cloudFunctions = {
   async updatePresence(gameId, playerId) {
     const presenceRef = ref(database, `gamesV2/${gameId}/players/${playerId}/lastSeen`);
     await set(presenceRef, Date.now());
+  },
+
+  // Warmup function - call after auth to pre-warm cloud functions
+  async warmup() {
+    const warmupV2 = httpsCallable(functions, 'warmupV2');
+    const result = await warmupV2({});
+    return result.data;
   },
 
   // Subscribe to V2 game state for real-time updates

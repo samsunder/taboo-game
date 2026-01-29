@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 const { getWordsForDifficulty } = require("./words");
@@ -1072,4 +1073,21 @@ exports.setRoundTimingV2 = onCall(async (request) => {
   await gameRef.update(updates);
 
   return { success: true };
+});
+
+/**
+ * Scheduled warmup - runs every 5 minutes to keep container warm
+ * This reduces cold start latency for all functions in this file
+ */
+exports.warmupScheduledV2 = onSchedule("every 5 minutes", async (event) => {
+  console.log("Scheduled warmup ping at", new Date().toISOString());
+  return null;
+});
+
+/**
+ * Client-callable warmup - called after auth to pre-warm functions
+ * Lightweight function that just returns immediately
+ */
+exports.warmupV2 = onCall(async (request) => {
+  return { success: true, timestamp: Date.now() };
 });
