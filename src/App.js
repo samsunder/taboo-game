@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft, Pencil } from 'lucide-react';
-import { firebaseStorage } from './firebase';
-import { getWordsForDifficulty, DIFFICULTY_CONFIG } from './words';
-
-// Use Firebase storage
-window.storage = firebaseStorage;
+import { firebaseStorage, cloudFunctions } from './firebase';
+import { DIFFICULTY_CONFIG } from './words';
 
 // Player name validation
 const PLAYER_NAME_MAX_LENGTH = 20;
@@ -913,38 +910,37 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
     joinGame();
   };
 
-  // Fetch game preview when gameId changes
+  // Fetch game preview when gameId changes (V2: subscribe to gamesV2 path)
   useEffect(() => {
-    const fetchGamePreview = async () => {
-      if (!gameId || gameId.length < 4) {
-        setGamePreview(null);
-        setError('');
-        return;
-      }
-
-      setLoading(true);
+    if (!gameId || gameId.length < 4) {
+      setGamePreview(null);
       setError('');
+      return;
+    }
 
-      try {
-        const result = await window.storage.get(`game:${gameId}`, true);
-        if (result) {
-          const game = JSON.parse(result.value);
-          setGamePreview(game);
-          setError('');
-        } else {
-          setGamePreview(null);
-          setError('Game not found');
-        }
-      } catch (err) {
+    setLoading(true);
+    setError('');
+
+    // Subscribe to V2 game state for preview
+    const unsubscribe = cloudFunctions.subscribeToGame(gameId, (v2Data) => {
+      setLoading(false);
+      if (v2Data) {
+        // Convert V2 format to app format, filtering out corrupted entries
+        const playersArray = Object.entries(v2Data.players || {})
+          .filter(([, player]) => player && typeof player === 'object' && player.name)
+          .map(([id, player]) => ({
+            id,
+            ...player
+          }));
+        setGamePreview({ ...v2Data, players: playersArray });
+        setError('');
+      } else {
         setGamePreview(null);
         setError('Game not found');
-      } finally {
-        setLoading(false);
       }
-    };
+    });
 
-    const debounceTimer = setTimeout(fetchGamePreview, 300);
-    return () => clearTimeout(debounceTimer);
+    return () => unsubscribe();
   }, [gameId]);
 
   const hostPlayer = gamePreview?.players?.find(p => p.id === gamePreview.host);
@@ -1082,11 +1078,11 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
                   <span className="font-semibold text-white">{hostPlayer?.name || 'Unknown'}</span>
                 </div>
                 <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  gamePreview.status === 'lobby' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                  gamePreview.status === 'waiting' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
                   gamePreview.status === 'playing' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
                   'bg-slate-500/20 text-slate-300 border border-slate-500/30'
                 }`}>
-                  {gamePreview.status === 'lobby' ? 'Waiting' :
+                  {gamePreview.status === 'waiting' ? 'Waiting' :
                    gamePreview.status === 'playing' ? 'In Progress' : 'Finished'}
                 </div>
               </div>
@@ -1550,7 +1546,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected, activeWords, activeWordCount }) {
   if (!gameState || gameState.status === 'finished') {
     return <ResultsScreen
       gameState={gameState}
@@ -1564,6 +1560,22 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
       transferHost={transferHost}
       isPlayerConnected={isPlayerConnected}
     />;
+  }
+
+  // Show loading screen during transition when status is playing but countdown hasn't been set yet
+  // This prevents a brief flash of the guess screen during the race condition between
+  // startRoundV2 (which sets status to 'playing') and the subsequent updateGame (which sets roundStartCountdownEnd)
+  if (gameState.status === 'playing' && !gameState.roundStartTime && !gameState.roundStartCountdownEnd && !gameState.restartCountdownEnd && !gameState.breakEndTime) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 flex items-center justify-center">
+        <div className="text-center space-y-8">
+          <div className="w-40 h-40 rounded-full bg-gradient-to-br from-cyan-500/20 to-teal-600/20 border-4 border-cyan-500/50 flex items-center justify-center animate-pulse mx-auto">
+            <span className="text-4xl font-bold text-cyan-400">...</span>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Starting round...</h1>
+        </div>
+      </div>
+    );
   }
 
   const player = gameState.players.find(p => p.id === playerId);
@@ -1877,12 +1889,12 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
               <Zap className="w-6 h-6 text-cyan-400" />
               Words This Round
               <span className="text-sm font-normal text-slate-300 ml-auto bg-slate-800/50 px-3 py-1 rounded-full">
-                {gameState.guesses.length}/{gameState.words.length} guessed
+                {(gameState.roundGuesses || gameState.round?.guesses || []).filter(g => g.correct).length}/{activeWordCount} guessed
               </span>
             </h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {gameState.words.map((wordObj, idx) => {
-                const guessInfo = gameState.guesses.find(g => g.word === wordObj.word);
+              {activeWords.map((wordObj, idx) => {
+                const guessInfo = (gameState.roundGuesses || gameState.round?.guesses || []).find(g => g.word === wordObj.word);
                 const wasGuessed = !!guessInfo;
                 const wordLen = wordObj.word.length;
                 // More granular font sizing based on word length
@@ -1942,7 +1954,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                                   : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
-                            {sub.word}
+                            {sub.word.toLowerCase()}
                             {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
                           </span>
                         ))}
@@ -2093,22 +2105,20 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                     <p className="text-lg text-slate-400">Spectating Team {currentPlayingTeam} - watch the words being described!</p>
                   )}
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                    {gameState.words.map((wordObj, idx) => {
-                      const isGuessed = gameState.guesses.some(g => g.word === wordObj.word);
+                    {activeWords.map((wordObj, idx) => {
+                      const isGuessed = (gameState.round?.guesses || []).some(g => g.word === wordObj.word);
                       const isLongWord = wordObj.word.length > 12;
                       const pointColors = {
-                        1: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/40 hover:border-emerald-400',
-                        2: 'from-cyan-500/20 to-blue-600/20 border-cyan-500/40 hover:border-cyan-400',
-                        3: 'from-amber-500/20 to-orange-600/20 border-amber-500/40 hover:border-amber-400',
-                        4: 'from-rose-500/20 to-pink-600/20 border-rose-500/40 hover:border-rose-400',
-                        5: 'from-violet-500/20 to-purple-600/20 border-violet-500/40 hover:border-violet-400'
+                        10: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/40 hover:border-emerald-400',
+                        20: 'from-cyan-500/20 to-blue-600/20 border-cyan-500/40 hover:border-cyan-400',
+                        25: 'from-amber-500/20 to-orange-600/20 border-amber-500/40 hover:border-amber-400',
+                        50: 'from-rose-500/20 to-pink-600/20 border-rose-500/40 hover:border-rose-400'
                       };
                       const textColors = {
-                        1: 'text-emerald-300',
-                        2: 'text-cyan-300',
-                        3: 'text-amber-300',
-                        4: 'text-rose-300',
-                        5: 'text-violet-300'
+                        10: 'text-emerald-300',
+                        20: 'text-cyan-300',
+                        25: 'text-amber-300',
+                        50: 'text-rose-300'
                       };
                       // Idle team sees slightly muted colors
                       const idleOpacity = isIdleTeam ? 'opacity-80' : '';
@@ -2118,7 +2128,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                           className={`p-2 sm:p-3 rounded-xl border-2 transition-all transform hover:scale-[1.02] overflow-hidden ${idleOpacity} ${
                             isGuessed
                               ? 'bg-slate-800/50 border-slate-600/50 opacity-40'
-                              : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[3]}`
+                              : `bg-gradient-to-br ${pointColors[wordObj.points] || pointColors[20]}`
                           }`}
                         >
                           <div className="text-center">
@@ -2148,7 +2158,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                   <div className="text-center">
                     <div className="text-sm text-slate-400 mb-2">Words Remaining</div>
                     <div className="text-3xl font-bold text-cyan-400">
-                      {gameState.words.length - gameState.guesses.length}
+                      {activeWordCount - (gameState.round?.guesses || []).filter(g => g.correct).length}
                     </div>
                   </div>
                 </div>
@@ -2221,9 +2231,9 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                                   : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
-                            {sub.word}
+                            {sub.word.toLowerCase()}
                             {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
-                            {sub.isDuplicate && <span className="text-slate-500 text-xs">✓</span>}
+                            {sub.isDuplicate && <span className="text-slate-500 text-xs italic">already guessed</span>}
                           </span>
                         ))}
                       </div>
@@ -2246,9 +2256,9 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                                   : 'bg-red-500/20 text-red-300/70 border border-red-500/30 line-through'
                             }`}
                           >
-                            {sub.word}
+                            {sub.word.toLowerCase()}
                             {sub.isCorrect && <span className="text-amber-400 text-xs">+{sub.points}</span>}
-                            {sub.isDuplicate && <span className="text-slate-500 text-xs">✓</span>}
+                            {sub.isDuplicate && <span className="text-slate-500 text-xs italic">already guessed</span>}
                           </span>
                         ))}
                       </div>
@@ -2340,9 +2350,11 @@ function PlayerAvatar({ name, emoji, size = 'md', highlight = false }) {
       'from-rose-400 to-red-500',
       'from-indigo-400 to-purple-500'
     ];
+    // Guard against undefined/null names
+    const safeName = name || 'Player';
     let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < safeName.length; i++) {
+      hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
     }
     return colors[Math.abs(hash) % colors.length];
   };
@@ -2382,18 +2394,30 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
   const [showSettings, setShowSettings] = useState(false);
   const [newSettings, setNewSettings] = useState(gameState?.settings || { rounds: 3, roundTime: 60, difficulty: 'mixed', teamMode: false });
   const [showConfetti, setShowConfetti] = useState(true);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(timer);
   }, []);
 
+  // Update time for connectivity check
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (!gameState) return null;
+
+  // Use a longer threshold for results screen (5 minutes) since background tabs throttle heartbeats
+  const RESULTS_DISCONNECT_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+  const isPlayerConnectedForResults = (player) => {
+    if (!player || !player.lastSeen) return false;
+    return (currentTime - player.lastSeen) < RESULTS_DISCONNECT_THRESHOLD;
+  };
 
   const isTeamMode = gameState.settings.teamMode;
   const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
-  const connectedPlayers = gameState.players.filter(p => isPlayerConnected(p));
-  const canRestart = connectedPlayers.length >= 2;
   // Use allSubmissions for final stats (includes all rounds), fallback to submissions for compatibility
   const submissions = gameState.allSubmissions || gameState.submissions || [];
 
@@ -2464,7 +2488,7 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
           transferHost={transferHost}
           switchTeam={() => {}} // Not needed in results screen
           availableDescribers={[]} // Not needed in results screen
-          isPlayerConnected={isPlayerConnected}
+          isPlayerConnected={isPlayerConnectedForResults}
         />
       </div>
 
@@ -2679,6 +2703,11 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
                     label: `${config.label} ${config.points ? `(${config.points} pts)` : '(All)'}`
                   }))}
                 />
+                <ToggleSwitch
+                  label="Team Mode"
+                  checked={newSettings.teamMode}
+                  onChange={(checked) => setNewSettings({...newSettings, teamMode: checked})}
+                />
               </div>
             )}
 
@@ -2690,25 +2719,16 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
               {showSettings ? 'Hide Settings' : 'Change Settings'}
             </button>
 
-            {!canRestart && (
-              <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl px-4 py-3 text-amber-300 text-center">
-                <AlertCircle className="w-5 h-5 inline mr-2" />
-                Need at least 2 connected players to restart ({connectedPlayers.length} connected)
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => restartGame(newSettings)}
-                disabled={!canRestart}
-                className={`px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  canRestart
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105 active:scale-95'
-                    : 'bg-slate-600 cursor-not-allowed opacity-50'
-                }`}
+                className="px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex flex-col items-center justify-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transform hover:scale-105 active:scale-95"
               >
-                <Play className="w-5 h-5" />
-                Play Again
+                <span className="flex items-center gap-2">
+                  <Play className="w-5 h-5" />
+                  Play Again
+                </span>
+                <span className="text-xs font-normal opacity-75">Returns to lobby</span>
               </button>
 
               <button
@@ -2740,11 +2760,21 @@ function App() {
   const [playerId, setPlayerId] = useState('');
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
+  // V2: Secure words storage - only describer has access to words locally
+  // Words are NOT stored in database, only returned from cloud function to describer
+  const [secureWords, setSecureWords] = useState(null);
   const isLeavingGame = useRef(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Compute bonus notification visibility from game state
   const bonusWordsNotification = gameState?.bonusWordsNotificationEnd && currentTime < gameState.bonusWordsNotificationEnd;
+
+  // V2 SECURITY: Use secureWords for describer (set when starting round)
+  // On page refresh, describer gets words from gameState.round.words (via getGameV2)
+  // During break: roundWords contains words copied from private path by endRoundV2
+  // Guessers will have empty activeWords during active round (they shouldn't see words)
+  const activeWords = secureWords || gameState?.roundWords || gameState?.round?.words || gameState?.words || [];
+  const activeWordCount = secureWords?.length || gameState?.roundWords?.length || gameState?.round?.wordCount || gameState?.wordCount || gameState?.words?.length || 0;
 
   // Helper: Compute if a player is connected based on their lastSeen timestamp
   // This avoids race conditions from storing connected status in Firebase
@@ -2761,6 +2791,33 @@ function App() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // V2 SECURITY: Clear secure words when role changes
+  // Keep words if: describer OR spectating team
+  // Clear words if: active team guesser (not describer, and on playing team)
+  useEffect(() => {
+    const isCurrentDescriber = gameState?.currentDescriber === playerId;
+    const isTeamMode = gameState?.settings?.teamMode;
+    const player = gameState?.players?.find(p => p.id === playerId);
+    const playerTeam = player?.team;
+    const currentPlayingTeam = gameState?.currentPlayingTeam;
+    const isSpectatingTeam = isTeamMode && playerTeam && currentPlayingTeam && playerTeam !== currentPlayingTeam;
+
+    // Clear words if we're an active team guesser (should NOT see words)
+    if (!isCurrentDescriber && !isSpectatingTeam && secureWords) {
+      setSecureWords(null);
+    }
+  }, [gameState?.currentDescriber, gameState?.currentPlayingTeam, playerId, gameState?.settings?.teamMode, gameState?.players, secureWords]);
+
+  // Clear secure words when round changes to ensure fresh words are loaded
+  useEffect(() => {
+    setSecureWords(null);
+  }, [gameState?.currentRound]);
+
+  // Clear secure words when playing team changes (team swap) so new spectators can fetch words
+  useEffect(() => {
+    setSecureWords(null);
+  }, [gameState?.currentPlayingTeam]);
 
   useEffect(() => {
     // Wait for Firebase auth to be ready, then use Firebase UID as player ID
@@ -2789,61 +2846,78 @@ function App() {
         if (gameParam) {
           setGameId(gameParam);
 
-          // Check if game exists and if player is already in it
-          const result = await window.storage.get(`game:${gameParam}`, true);
-          if (result) {
-            const game = JSON.parse(result.value);
+          // Check if game exists using V2 cloud function
+          try {
+            const result = await cloudFunctions.getGame(gameParam);
+            if (result && result.game) {
+              const game = result.game;
 
-            // Check if game is stale/corrupted (no players or no host)
-            const isStaleGame = !game.players || game.players.length === 0 || !game.host;
-            if (isStaleGame) {
-              console.log('Stale game detected, redirecting to home');
-              window.history.replaceState({}, '', window.location.pathname);
-              setGameId('');
-              alert('This game session has expired. Please create or join a new game.');
-              setScreen('home');
-              return;
-            }
+              // Convert players object to array for compatibility, filtering out corrupted entries
+              const playersArray = Object.entries(game.players || {})
+                .filter(([, player]) => player && typeof player === 'object' && player.name)
+                .map(([id, player]) => ({
+                  id,
+                  ...player
+                }));
+              const gameWithPlayers = { ...game, players: playersArray };
 
-            // Check if all players have been offline for too long (zombie game)
-            const ZOMBIE_THRESHOLD = 30 * 60 * 1000; // 30 minutes
-            const now = Date.now();
-            const allPlayersOfflineTooLong = game.players.every(p => {
-              if (!p.lastSeen) return true; // No lastSeen means never connected properly
-              return (now - p.lastSeen) > ZOMBIE_THRESHOLD;
-            });
-            if (allPlayersOfflineTooLong) {
-              console.log('Zombie game detected (all players offline 30+ min), redirecting to home');
-              window.history.replaceState({}, '', window.location.pathname);
-              setGameId('');
-              alert('This game session has expired. All players have been inactive for too long.');
-              setScreen('home');
-              return;
-            }
-
-            // Check if player is in this game using Firebase UID
-            const existingPlayer = game.players.find(p => p.id === firebaseUid);
-
-            if (existingPlayer) {
-              // Player is already in the game - rejoin directly
-              console.log('Player refreshed - rejoining game directly');
-              setPlayerName(existingPlayer.name);
-              setGameState(game);
-
-              if (game.status === 'playing') {
-                setScreen('game');
-              } else if (game.status === 'finished') {
-                setScreen('game');
-              } else {
-                setScreen('lobby');
+              // Check if game is stale/corrupted (no players or no host)
+              const isStaleGame = !playersArray || playersArray.length === 0 || !game.host;
+              if (isStaleGame) {
+                console.log('Stale game detected, redirecting to home');
+                window.history.replaceState({}, '', window.location.pathname);
+                setGameId('');
+                alert('This game session has expired. Please create or join a new game.');
+                setScreen('home');
+                return;
               }
-              return;
+
+              // Check if all players have been offline for too long (zombie game)
+              const ZOMBIE_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+              const now = Date.now();
+              const allPlayersOfflineTooLong = playersArray.every(p => {
+                if (!p.lastSeen) return true; // No lastSeen means never connected properly
+                return (now - p.lastSeen) > ZOMBIE_THRESHOLD;
+              });
+              if (allPlayersOfflineTooLong) {
+                console.log('Zombie game detected (all players offline 30+ min), redirecting to home');
+                window.history.replaceState({}, '', window.location.pathname);
+                setGameId('');
+                alert('This game session has expired. All players have been inactive for too long.');
+                setScreen('home');
+                return;
+              }
+
+              // Check if player is in this game using Firebase UID
+              const existingPlayer = playersArray.find(p => p.id === firebaseUid);
+
+              if (existingPlayer) {
+                // Player is already in the game - rejoin directly
+                console.log('Player refreshed - rejoining game directly');
+                setPlayerName(existingPlayer.name);
+                setGameState(gameWithPlayers);
+
+                if (game.status === 'playing') {
+                  setScreen('game');
+                } else if (game.status === 'finished') {
+                  setScreen('game');
+                } else {
+                  setScreen('lobby');
+                }
+                return;
+              }
+              // Game exists but player not in it - show join screen
+              setScreen('join');
+            } else {
+              // Game doesn't exist - clear URL and show home with message
+              console.log('Game not found, redirecting to home');
+              window.history.replaceState({}, '', window.location.pathname);
+              setGameId('');
+              alert('This game no longer exists. It may have expired or been deleted.');
+              setScreen('home');
             }
-            // Game exists but player not in it - show join screen
-            setScreen('join');
-          } else {
-            // Game doesn't exist - clear URL and show home with message
-            console.log('Game not found, redirecting to home');
+          } catch (err) {
+            console.log('Game not found or error:', err.message);
             window.history.replaceState({}, '', window.location.pathname);
             setGameId('');
             alert('This game no longer exists. It may have expired or been deleted.');
@@ -2858,19 +2932,32 @@ function App() {
     initPlayerId();
   }, []);
 
-  // Subscribe to real-time updates from Firebase
+  // Subscribe to real-time updates from Firebase (V2)
   useEffect(() => {
     if (gameId && (screen === 'game' || screen === 'lobby')) {
-      console.log('Setting up Firebase listener for game:', gameId);
+      console.log('[V2] Setting up Firebase listener for game:', gameId);
 
-      // Subscribe to real-time updates
-      const unsubscribe = firebaseStorage.subscribe(`game:${gameId}`, (data) => {
-        if (data) {
-          const newState = JSON.parse(data);
-          console.log('Real-time update:', newState.players.length, 'players', newState.players.map(p => p.name), 'status:', newState.status);
+      // Subscribe to V2 game state
+      const unsubscribe = cloudFunctions.subscribeToGame(gameId, (v2Data) => {
+        if (v2Data) {
+          // Convert V2 format (object with player IDs as keys) to app format (array with id property)
+          // Filter out corrupted entries (those without proper name property)
+          const playersArray = Object.entries(v2Data.players || {})
+            .filter(([id, player]) => player && typeof player === 'object' && player.name)
+            .map(([id, player]) => ({
+              id,
+              ...player
+            }));
+
+          const newState = {
+            ...v2Data,
+            players: playersArray
+          };
+
+          console.log('[V2] Real-time update:', playersArray.length, 'players', playersArray.map(p => p.name), 'status:', v2Data.status);
 
           // Check if current player was kicked (but not if they left voluntarily)
-          const playerStillInGame = newState.players.some(p => p.id === playerId);
+          const playerStillInGame = playersArray.some(p => p.id === playerId);
 
           if (!playerStillInGame && playerId && !isLeavingGame.current) {
             console.log('Player was kicked from the game');
@@ -2879,99 +2966,44 @@ function App() {
             setScreen('home');
             setGameId('');
             setGameState(null);
+            setSecureWords(null);
             return;
           }
 
           setGameState(newState);
 
-          // Auto-switch to game screen when status changes to 'playing'
-          if (newState.status === 'playing' && screen === 'lobby') {
-            console.log('Game started! Switching to game screen');
+          // Auto-switch screens based on game status
+          if ((newState.status === 'playing' || newState.status === 'finished') && screen === 'lobby') {
+            console.log('Game in progress or finished! Switching to game screen');
             setScreen('game');
+          } else if (newState.status === 'waiting' && screen === 'game') {
+            // Host clicked "Play Again" - return everyone to lobby
+            console.log('Game returned to lobby! Switching to lobby screen');
+            setScreen('lobby');
           }
         }
       });
 
       return () => {
-        console.log('Cleaning up Firebase listener');
+        console.log('[V2] Cleaning up Firebase listener');
         unsubscribe();
       };
     }
-  }, [gameId, screen]);
+  }, [gameId, screen, playerId]);
 
-  // Heartbeat to track player presence
+  // Heartbeat to track player presence (V2 - direct write to lastSeen only)
   useEffect(() => {
     if (!gameId || !playerId || (screen !== 'game' && screen !== 'lobby')) return;
 
     const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
-    // 65 seconds threshold to account for browser throttling background tabs
-    // (browsers may throttle setInterval to once per minute in background tabs)
-    const DISCONNECT_THRESHOLD = 65000;
 
     const sendHeartbeat = async () => {
       try {
-        const result = await window.storage.get(`game:${gameId}`, true);
-        if (!result) return;
-
-        const game = JSON.parse(result.value);
-        const now = Date.now();
-
-        // Only update current player's lastSeen to avoid race conditions
-        // Don't recalculate other players' status here (UI will compute from lastSeen)
-
-        // Auto-transfer host if current host has been disconnected for 120 seconds
-        const HOST_DISCONNECT_THRESHOLD = 120000;
-        let newHost = game.host;
-        const currentHost = game.players.find(p => p.id === game.host);
-
-        if (currentHost && currentHost.lastSeen && (now - currentHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
-          // Find a connected player to transfer host to
-          const newHostPlayer = game.players.find(p =>
-            p.id !== game.host && p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD
-          );
-          if (newHostPlayer && newHostPlayer.id !== game.host) {
-            newHost = newHostPlayer.id;
-          }
-        }
-
-        // Only update if this player's data changed or host transfer needed
-        const existingPlayer = game.players.find(p => p.id === playerId);
-        const playerDataChanged = !existingPlayer || existingPlayer.lastSeen !== now;
-        const hostChanged = newHost !== game.host;
-
-        if (playerDataChanged || hostChanged) {
-          // Re-read to minimize race condition window
-          const freshResult = await window.storage.get(`game:${gameId}`, true);
-          if (freshResult) {
-            const freshGame = JSON.parse(freshResult.value);
-
-            // Only update our own player's lastSeen (don't recalculate others)
-            const mergedPlayers = freshGame.players.map(p => {
-              if (p.id === playerId) {
-                return { ...p, lastSeen: now };
-              }
-              return p;
-            });
-
-            // Only transfer host if still needed after re-read
-            let finalHost = freshGame.host;
-            if (hostChanged) {
-              const freshHost = freshGame.players.find(p => p.id === freshGame.host);
-              if (freshHost && freshHost.lastSeen && (now - freshHost.lastSeen) > HOST_DISCONNECT_THRESHOLD) {
-                const newHostPlayer = freshGame.players.find(p =>
-                  p.id !== freshGame.host && p.lastSeen && (now - p.lastSeen) < DISCONNECT_THRESHOLD
-                );
-                if (newHostPlayer && newHostPlayer.id !== freshGame.host) {
-                  finalHost = newHostPlayer.id;
-                }
-              }
-            }
-
-            await window.storage.set(`game:${gameId}`, JSON.stringify({ ...freshGame, players: mergedPlayers, host: finalHost }), true);
-          }
-        }
+        // V2: Simply update our own lastSeen timestamp
+        // Database rules only allow writing to our own lastSeen
+        await cloudFunctions.updatePresence(gameId, playerId);
       } catch (err) {
-        console.error('Heartbeat error:', err);
+        console.error('[V2] Heartbeat error:', err);
       }
     };
 
@@ -2984,7 +3016,127 @@ function App() {
     return () => clearInterval(interval);
   }, [gameId, playerId, screen]);
 
-  const generateId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+  // V2 SECURITY: Fetch words when becoming describer OR spectating team member
+  // (handles refresh/mid-game describer change)
+  useEffect(() => {
+    const isCurrentDescriber = gameState?.round?.describerId === playerId || gameState?.currentDescriber === playerId;
+    const isPlaying = gameState?.status === 'playing';
+    const hasRound = gameState?.round || gameState?.roundStartTime;
+
+    // Check if player is on spectating team (team mode, not on active team)
+    const isTeamMode = gameState?.settings?.teamMode;
+    const player = gameState?.players?.find(p => p.id === playerId);
+    const playerTeam = player?.team;
+    const currentPlayingTeam = gameState?.currentPlayingTeam;
+    const isSpectatingTeam = isTeamMode && playerTeam && currentPlayingTeam && playerTeam !== currentPlayingTeam;
+
+    // Fetch words if: (describer OR spectating team), game is playing, has round, no words yet
+    if ((isCurrentDescriber || isSpectatingTeam) && isPlaying && hasRound && !secureWords && gameId) {
+      console.log('[V2] Need words (describer:', isCurrentDescriber, 'spectating:', isSpectatingTeam, '), fetching from cloud function...');
+
+      cloudFunctions.getGame(gameId)
+        .then(result => {
+          if (result.game?.round?.words) {
+            const words = result.game.round.words.map(w => ({
+              word: w.word,
+              points: w.points
+            }));
+            setSecureWords(words);
+            console.log('[V2] Got words:', words.length);
+          }
+        })
+        .catch(err => {
+          console.error('[V2] Failed to fetch words:', err);
+        });
+    }
+  }, [gameState?.round?.describerId, gameState?.currentDescriber, gameState?.status, gameState?.round, gameState?.roundStartTime, playerId, secureWords, gameId, gameState?.settings?.teamMode, gameState?.currentPlayingTeam, gameState?.players]);
+
+  // Re-fetch words when bonus words are added (describer and spectating team need updated word list)
+  // Watch lastBonusAtWordCount which changes each time bonus is added (16 → 20 → 24 → 28)
+  useEffect(() => {
+    const isCurrentDescriber = gameState?.round?.describerId === playerId || gameState?.currentDescriber === playerId;
+    const isPlaying = gameState?.status === 'playing';
+
+    // Check if player is on spectating team
+    const isTeamMode = gameState?.settings?.teamMode;
+    const player = gameState?.players?.find(p => p.id === playerId);
+    const playerTeam = player?.team;
+    const currentPlayingTeam = gameState?.currentPlayingTeam;
+    const isSpectatingTeam = isTeamMode && playerTeam && currentPlayingTeam && playerTeam !== currentPlayingTeam;
+
+    // If bonus words were just added and we're the describer or spectating, re-fetch words
+    if ((isCurrentDescriber || isSpectatingTeam) && isPlaying && gameState?.lastBonusAtWordCount > 0 && gameId) {
+      console.log('[V2] Bonus words added (at word count', gameState.lastBonusAtWordCount, '), re-fetching words...');
+
+      cloudFunctions.getGame(gameId)
+        .then(result => {
+          if (result.game?.round?.words) {
+            const words = result.game.round.words.map(w => ({
+              word: w.word,
+              points: w.points
+            }));
+            setSecureWords(words);
+            console.log('[V2] Updated words with bonus:', words.length);
+          }
+        })
+        .catch(err => {
+          console.error('[V2] Failed to fetch bonus words:', err);
+        });
+    }
+  }, [gameState?.lastBonusAtWordCount, gameState?.currentDescriber, gameState?.round?.describerId, gameState?.status, playerId, gameId, gameState?.settings?.teamMode, gameState?.currentPlayingTeam, gameState?.players]);
+
+  // Auto-transfer host if host is offline for 120 seconds
+  // This prevents the game from getting stuck if the host disconnects
+  useEffect(() => {
+    if (!gameState || !gameId || !playerId) return;
+    if (screen !== 'game' && screen !== 'lobby') return;
+
+    const HOST_OFFLINE_THRESHOLD = 120000; // 120 seconds
+    const CHECK_INTERVAL = 10000; // Check every 10 seconds
+
+    const checkHostPresence = async () => {
+      const host = gameState.players?.find(p => p.id === gameState.host);
+      if (!host) return;
+
+      const hostOfflineTime = currentTime - (host.lastSeen || 0);
+      const isHostOffline = hostOfflineTime > HOST_OFFLINE_THRESHOLD;
+
+      // Only proceed if host is offline and we're not the host
+      if (!isHostOffline || gameState.host === playerId) return;
+
+      // Find first connected player (excluding current host)
+      const connectedPlayers = gameState.players?.filter(p => {
+        if (p.id === gameState.host) return false;
+        const offlineTime = currentTime - (p.lastSeen || 0);
+        return offlineTime < 65000; // Using same threshold as isPlayerConnected
+      });
+
+      if (connectedPlayers.length === 0) return;
+
+      // Sort by joinedAt so earliest player becomes host (deterministic across all clients)
+      const sortedConnected = [...connectedPlayers].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+      const newHost = sortedConnected[0];
+
+      // Only the designated new host should trigger the transfer to avoid race conditions
+      if (newHost.id !== playerId) return;
+
+      console.log(`[Auto] Host ${host.name} offline for ${Math.floor(hostOfflineTime / 1000)}s, transferring to ${newHost.name}`);
+
+      try {
+        await cloudFunctions.transferHost(gameId, newHost.id);
+        console.log('[Auto] Host transferred successfully');
+      } catch (err) {
+        console.error('[Auto] Failed to transfer host:', err);
+      }
+    };
+
+    const interval = setInterval(checkHostPresence, CHECK_INTERVAL);
+
+    // Also check immediately
+    checkHostPresence();
+
+    return () => clearInterval(interval);
+  }, [gameState, gameId, playerId, screen, currentTime]);
 
   const createGame = async (settings) => {
     // Wait for Firebase auth and use UID as player ID
@@ -2994,38 +3146,27 @@ function App() {
       return;
     }
 
-    const newGameId = generateId();
-    const newPlayerId = user.uid; // Use Firebase UID instead of random ID
-
-    const game = {
-      id: newGameId,
-      host: newPlayerId,
-      settings,
-      players: [{ id: newPlayerId, name: playerName, emoji: playerEmoji, score: 0, team: settings.teamMode ? 1 : null }],
-      status: 'lobby',
-      currentRound: 0,
-      currentDescriber: newPlayerId,
-      currentPlayingTeam: settings.teamMode ? 1 : null, // Track which team is currently playing
-      teamDescriberIndex: { 1: 0, 2: 0 }, // Track describer rotation within each team
-      words: [],
-      roundStartTime: null,
-      roundEndTime: null,
-      breakEndTime: null,
-      guesses: [],
-      submissions: [], // Track current round submissions
-      allSubmissions: [], // Track all submissions across rounds for accuracy
-      createdAt: Date.now()
-    };
+    const newPlayerId = user.uid;
 
     try {
-      await window.storage.set(`game:${newGameId}`, JSON.stringify(game), true);
+      console.log('[V2] Creating game via cloud function...');
+      const result = await cloudFunctions.createGame(playerName, playerEmoji, {
+        difficulty: settings.difficulty,
+        roundTime: settings.roundTime,
+        totalRounds: settings.rounds,
+        bonusEnabled: settings.bonusWordsEnabled !== false,
+        teamMode: settings.teamMode || false
+      });
+
+      console.log('[V2] Game created:', result);
+      const newGameId = result.gameId;
+
+      // Set local state - real-time subscription will sync the rest
       setGameId(newGameId);
       setPlayerId(newPlayerId);
-      // No need to store in localStorage anymore - using Firebase UID
-      setGameState(game);
       setScreen('lobby');
 
-      // Update URL to include game ID so refresh works (delayed for Safari compatibility)
+      // Update URL
       setTimeout(() => {
         try {
           const newUrl = `${window.location.origin}${window.location.pathname}?game=${newGameId}`;
@@ -3034,9 +3175,6 @@ function App() {
           console.warn('Could not update URL:', e);
         }
       }, 100);
-
-      // Run cleanup in background (don't await)
-      firebaseStorage.cleanupOldGames();
     } catch (err) {
       console.error('Create game error:', err);
       alert('Failed to create game: ' + err.message);
@@ -3056,65 +3194,11 @@ function App() {
     }
 
     try {
-      console.log('Attempting to join game:', gameId);
+      console.log('[V2] Joining game via cloud function:', gameId);
+      const result = await cloudFunctions.joinGame(gameId, playerName, playerEmoji);
+      console.log('[V2] Join result:', result);
 
-      const result = await window.storage.get(`game:${gameId}`, true);
-      if (!result) {
-        alert('Game not found! Please check the game code.');
-        return;
-      }
-
-      const game = JSON.parse(result.value);
-
-      let existingPlayer = game.players.find(p => p.id === playerId);
-
-      if (existingPlayer) {
-        // Player is reconnecting - keep their score and info
-        existingPlayer.name = playerName;
-        existingPlayer.emoji = playerEmoji;
-        console.log('Player reconnecting:', playerName, 'Score:', existingPlayer.score);
-      } else {
-        // Check player limits
-        const maxPlayers = game.settings.teamMode ? MAX_PLAYERS_TEAM : MAX_PLAYERS_FFA;
-        if (game.players.length >= maxPlayers) {
-          alert(`Game is full! Maximum ${maxPlayers} players allowed.`);
-          return;
-        }
-
-        // In team mode, also check per-team limit
-        if (game.settings.teamMode) {
-          const team1Count = game.players.filter(p => p.team === 1).length;
-          const team2Count = game.players.filter(p => p.team === 2).length;
-          const assignToTeam = team1Count <= team2Count ? 1 : 2;
-          const targetTeamCount = assignToTeam === 1 ? team1Count : team2Count;
-
-          if (targetTeamCount >= MAX_PLAYERS_PER_TEAM) {
-            alert(`Both teams are full! Maximum ${MAX_PLAYERS_PER_TEAM} players per team.`);
-            return;
-          }
-        }
-
-        // Use Firebase UID (already stored in playerId state)
-        const teamAssignment = game.settings.teamMode
-          ? (game.players.filter(p => p.team === 1).length <= game.players.filter(p => p.team === 2).length ? 1 : 2)
-          : null;
-
-        game.players.push({
-          id: playerId, // Use Firebase UID from state
-          name: playerName,
-          emoji: playerEmoji,
-          score: 0,
-          team: teamAssignment
-        });
-        // No need to update localStorage anymore
-      }
-
-      console.log('Saving updated game with', game.players.length, 'players:', game.players.map(p => p.name));
-      await window.storage.set(`game:${gameId}`, JSON.stringify(game), true);
-
-      setGameState(game);
-
-      // Update URL to include game ID so refresh works (delayed for Safari compatibility)
+      // Update URL
       setTimeout(() => {
         try {
           const newUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
@@ -3124,206 +3208,146 @@ function App() {
         }
       }, 100);
 
-      // Auto-switch to the correct screen based on game status
-      if (game.status === 'playing') {
-        console.log('Rejoining active game - switching to game screen');
-        setScreen('game');
-      } else if (game.status === 'finished') {
-        console.log('Game has finished - showing results');
-        setScreen('game'); // GameScreen component handles showing results
-      } else {
-        setScreen('lobby');
-      }
+      // Start in lobby - real-time subscription will update state and switch screens as needed
+      setScreen('lobby');
     } catch (err) {
       console.error('Join game error:', err);
-      alert('Failed to join game: ' + err.message);
+      if (err.code === 'not-found') {
+        alert('Game not found! Please check the game code.');
+      } else {
+        alert('Failed to join game: ' + err.message);
+      }
     }
   };
 
+  // V2: Update game state via cloud function (host only for most updates)
   const updateGame = async (updates) => {
     try {
-      const result = await window.storage.get(`game:${gameId}`, true);
-      if (!result) return;
-
-      const game = JSON.parse(result.value);
-
-      // If updates include players, preserve their fresh lastSeen and connected status
-      // to avoid race conditions with the heartbeat system
-      let finalUpdates = updates;
-      if (updates.players && game.players) {
-        finalUpdates = {
-          ...updates,
-          players: updates.players.map(updatedPlayer => {
-            const freshPlayer = game.players.find(p => p.id === updatedPlayer.id);
-            // Preserve heartbeat data (lastSeen, connected) from database, keep everything else from update
-            return {
-              ...updatedPlayer,
-              lastSeen: freshPlayer?.lastSeen || updatedPlayer.lastSeen
-            };
-          })
-        };
-      }
-
-      const updatedGame = { ...game, ...finalUpdates };
-      await window.storage.set(`game:${gameId}`, JSON.stringify(updatedGame), true);
-      setGameState(updatedGame);
+      // For V2, use cloud function to update game state
+      // The real-time subscription will update local state automatically
+      await cloudFunctions.updateGameState(gameId, updates);
     } catch (err) {
-      console.error('Error updating game:', err);
+      console.error('[V2] Error updating game:', err);
+      // If permission denied, it might be a non-host trying to update
+      if (err.code === 'permission-denied') {
+        console.log('[V2] Only host can update game state');
+      }
     }
   };
 
   const startGame = async () => {
     if (!gameState) return;
 
-    // Generate random words for the first round (16 words initially, can grow to 32)
-    const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
-    const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-    const words = shuffled.slice(0, 16);
+    try {
+      console.log('[V2] Starting round via cloud function...');
 
-    // For team mode, set up the first describer from team 1
-    let firstDescriber = gameState.currentDescriber;
-    let currentPlayingTeam = gameState.currentPlayingTeam;
-    let teamDescriberIndex = gameState.teamDescriberIndex || { 1: 0, 2: 0 };
-
-    if (gameState.settings.teamMode) {
-      const team1Players = gameState.players.filter(p => p.team === 1);
-      if (team1Players.length > 0) {
-        firstDescriber = team1Players[0].id;
-        currentPlayingTeam = 1;
-        teamDescriberIndex = { 1: 0, 2: 0 };
+      // Determine first describer
+      let firstDescriber = playerId; // Default to host
+      if (gameState.settings?.teamMode) {
+        const team1Players = gameState.players.filter(p => p.team === 1);
+        if (team1Players.length > 0) {
+          firstDescriber = team1Players[0].id;
+        }
       }
-    }
 
-    // Set up game with countdown (3 seconds) - roundStartTime will be set after countdown
-    await updateGame({
-      status: 'playing',
-      currentRound: 1,
-      words,
-      roundStartTime: null, // Will be set after countdown
-      roundStartCountdownEnd: Date.now() + 3000, // 3 second countdown
-      roundEndTime: null,
-      breakEndTime: null,
-      guesses: [],
-      submissions: [],
-      allSubmissions: [], // Initialize for accuracy tracking
-      currentDescriber: firstDescriber,
-      currentPlayingTeam,
-      teamDescriberIndex
-    });
-    setScreen('game');
+      const result = await cloudFunctions.startRound(gameId, firstDescriber);
+      console.log('[V2] Start round result:', result);
+
+      // V2 SECURITY: Words are only returned if caller is the describer
+      if (result.roundData.words) {
+        const words = result.roundData.words.map(w => ({
+          word: w.word,
+          points: w.points
+        }));
+        setSecureWords(words);
+        console.log('[V2] Stored secure words locally (describer only)');
+      } else {
+        setSecureWords(null);
+        console.log('[V2] No words returned (not the describer)');
+      }
+
+      // Update game state via cloud function
+      await updateGame({
+        status: 'playing',
+        currentRound: result.round,
+        roundStartTime: null,
+        roundStartCountdownEnd: Date.now() + 3000,
+        roundEndTime: null,
+        breakEndTime: null,
+        currentDescriber: firstDescriber,
+        currentPlayingTeam: gameState.settings?.teamMode ? 1 : null,
+        teamDescriberIndex: { 1: 0, 2: 0 }
+      });
+
+      setScreen('game');
+    } catch (err) {
+      console.error('Start game error:', err);
+      alert('Failed to start game: ' + err.message);
+    }
   };
 
   // Start the actual round after initial countdown (for first round only)
+  // Uses cloud function so non-host describers can also start the round
   const startInitialRound = async () => {
     if (!gameState) return;
-    await updateGame({
-      roundStartTime: Date.now(),
-      roundStartCountdownEnd: null
-    });
+    try {
+      // If we're the describer and don't have words, fetch them first
+      if (isDescriber && !secureWords) {
+        console.log('[V2] Non-host describer fetching words before starting round...');
+        const result = await cloudFunctions.getGame(gameId);
+        if (result.game?.round?.words) {
+          const words = result.game.round.words.map(w => ({
+            word: w.word,
+            points: w.points
+          }));
+          setSecureWords(words);
+          console.log('[V2] Describer got words:', words.length);
+        }
+      }
+
+      await cloudFunctions.setRoundTiming(gameId, Date.now(), gameState.currentRound, gameState.currentPlayingTeam);
+    } catch (err) {
+      console.error('Start initial round error:', err);
+      // Fallback for host
+      if (isHost) {
+        await updateGame({
+          roundStartTime: Date.now(),
+          roundStartCountdownEnd: null
+        });
+      }
+    }
   };
 
   const submitGuess = async () => {
     if (!guessInput.trim() || !gameState) return;
 
-    const guessedWord = guessInput.trim().toLowerCase();
     const player = gameState.players.find(p => p.id === playerId);
 
     // In team mode, only allow guessing if you're on the active team and not the describer
-    if (gameState.settings.teamMode) {
-      if (player.team !== gameState.currentPlayingTeam) {
-        // Player is on the idle team, can't guess
+    if (gameState.settings?.teamMode) {
+      if (player?.team !== gameState.currentPlayingTeam) {
         setGuessInput('');
         return;
       }
       if (playerId === gameState.currentDescriber) {
-        // Describer can't guess
         setGuessInput('');
         return;
       }
     }
 
-    // Find if this word exists in the word list
-    const matchedWord = gameState.words.find(w =>
-      w.word.toLowerCase() === guessedWord
-    );
+    try {
+      console.log('[V2] Submitting guess via cloud function:', guessInput.trim());
+      const result = await cloudFunctions.submitGuess(gameId, guessInput.trim());
+      console.log('[V2] Guess result:', result);
 
-    // Check if this word has already been correctly guessed by someone
-    const alreadyGuessed = gameState.guesses.some(g =>
-      g.word.toLowerCase() === guessedWord
-    );
+      // Cloud function now updates submissions array in database
+      // Real-time subscription will update local state automatically
 
-    const isCorrect = matchedWord && !alreadyGuessed;
-
-    // Record this submission (both correct and incorrect)
-    const newSubmission = {
-      playerId,
-      playerName: player.name,
-      word: guessInput.trim(), // Keep original casing for display
-      isCorrect,
-      isDuplicate: alreadyGuessed, // Mark as duplicate (won't count toward accuracy)
-      points: isCorrect ? matchedWord.points : 0,
-      timestamp: Date.now()
-    };
-
-    const newSubmissions = [...(gameState.submissions || []), newSubmission];
-
-    // Only award points to the first correct guesser
-    if (isCorrect) {
-      const updatedPlayers = gameState.players.map(p =>
-        p.id === playerId ? { ...p, score: p.score + matchedWord.points } : p
-      );
-
-      const newGuesses = [...gameState.guesses, {
-        playerId,
-        playerName: player.name,
-        word: matchedWord.word,
-        points: matchedWord.points,
-        timestamp: Date.now()
-      }];
-
-      // Check if we should add bonus words (80% guessed, max 32 words)
-      const guessedPercent = newGuesses.length / gameState.words.length;
-      const shouldAddBonusWords = guessedPercent >= 0.8 && gameState.words.length < 32;
-
-      if (shouldAddBonusWords) {
-        // Get 4 more unique words from the same difficulty pool
-        const existingWords = new Set(gameState.words.map(w => w.word.toLowerCase()));
-        const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
-        const availableWords = wordPool.filter(w => !existingWords.has(w.word.toLowerCase()));
-        const shuffled = [...availableWords].sort(() => Math.random() - 0.5);
-        const bonusWords = shuffled.slice(0, 4);
-
-        if (bonusWords.length > 0) {
-          const updatedWords = [...gameState.words, ...bonusWords];
-          await updateGame({
-            players: updatedPlayers,
-            guesses: newGuesses,
-            submissions: newSubmissions,
-            words: updatedWords,
-            bonusWordsNotificationEnd: Date.now() + 3000 // Show notification for 3 seconds to all players
-          });
-        } else {
-          await updateGame({
-            players: updatedPlayers,
-            guesses: newGuesses,
-            submissions: newSubmissions
-          });
-        }
-      } else {
-        await updateGame({
-          players: updatedPlayers,
-          guesses: newGuesses,
-          submissions: newSubmissions
-        });
-      }
-    } else {
-      // Just record the incorrect submission
-      await updateGame({
-        submissions: newSubmissions
-      });
+      setGuessInput('');
+    } catch (err) {
+      console.error('Submit guess error:', err);
+      setGuessInput('');
     }
-
-    setGuessInput('');
   };
 
   const endRound = async () => {
@@ -3378,90 +3402,122 @@ function App() {
       ...(gameState.submissions || [])
     ];
 
-    await updateGame({
-      roundEndTime: Date.now(),
-      breakEndTime: Date.now() + (isLastRound ? 20000 : 10000), // 20 seconds for final summary, 10 for normal breaks
-      currentDescriber: nextDescriber,
-      currentPlayingTeam: nextPlayingTeam,
-      teamDescriberIndex,
-      roundStartTime: null,
-      isLastRoundBreak: isLastRound, // Flag to indicate this is the final round break
-      allSubmissions: updatedAllSubmissions // Accumulate submissions at end of each round
-    });
+    // Use cloud function to end round - this copies words from private to public path
+    // so the break screen can display them
+    try {
+      await cloudFunctions.endRound(gameId, {
+        nextDescriberId: nextDescriber,
+        isLastRound,
+        breakDuration: isLastRound ? 20000 : 10000,
+        nextPlayingTeam,
+        teamDescriberIndex,
+        allSubmissions: updatedAllSubmissions
+      });
+    } catch (err) {
+      console.error('End round error:', err);
+      // Fallback to updateGame if cloud function fails
+      await updateGame({
+        roundEndTime: Date.now(),
+        breakEndTime: Date.now() + (isLastRound ? 20000 : 10000),
+        currentDescriber: nextDescriber,
+        currentPlayingTeam: nextPlayingTeam,
+        teamDescriberIndex,
+        roundStartTime: null,
+        isLastRoundBreak: isLastRound,
+        allSubmissions: updatedAllSubmissions
+      });
+    }
   };
 
   // Initiate the 3-second countdown before starting round (synced to Firebase)
   const initiateStartCountdown = async () => {
     if (!gameState) return;
     if (gameState.roundStartCountdownEnd) return; // Already counting down
-    await updateGame({
-      roundStartCountdownEnd: Date.now() + 3000 // 3 second countdown
-    });
+
+    try {
+      // Use cloud function so non-host describers can initiate countdown
+      await cloudFunctions.initiateCountdown(gameId, 3);
+    } catch (err) {
+      console.error('Initiate countdown error:', err);
+      alert('Failed to start countdown: ' + err.message);
+    }
   };
 
   const startNextRound = async () => {
     if (!gameState) return;
 
-    // Generate new random words for this round (16 words initially, can grow to 32)
-    const wordPool = getWordsForDifficulty(gameState.settings.difficulty, 300);
-    const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-    const words = shuffled.slice(0, 16);
+    try {
+      console.log('[V2] Starting next round via cloud function...');
 
-    const isTeamMode = gameState.settings.teamMode;
+      // The current describer was set in endRound
+      const describerId = gameState.currentDescriber;
+      const result = await cloudFunctions.startRound(gameId, describerId);
+      console.log('[V2] Start next round result:', result);
 
-    // In team mode, only increment round when team 1 starts (after team 2 finishes)
-    let newRound = gameState.currentRound;
-    if (isTeamMode) {
-      // Increment round only when team 1 is starting (team 2 just finished)
-      if (gameState.currentPlayingTeam === 1) {
+      // V2 SECURITY: Words are only returned if caller is the describer
+      // Store words locally - NEVER write to database
+      if (result.roundData.words) {
+        const words = result.roundData.words.map(w => ({
+          word: w.word,
+          points: w.points
+        }));
+        setSecureWords(words);
+        console.log('[V2] Stored secure words locally (describer only)');
+      } else {
+        setSecureWords(null);
+        console.log('[V2] No words returned (not the describer)');
+      }
+
+      const isTeamMode = gameState.settings.teamMode;
+
+      // In team mode, only increment round when team 1 starts (after team 2 finishes)
+      let newRound = gameState.currentRound;
+      if (isTeamMode) {
+        if (gameState.currentPlayingTeam === 1) {
+          newRound = gameState.currentRound + 1;
+        }
+      } else {
         newRound = gameState.currentRound + 1;
       }
-    } else {
-      newRound = gameState.currentRound + 1;
-    }
 
-    await updateGame({
-      currentRound: newRound,
-      words,
-      roundStartTime: Date.now(),
-      roundEndTime: null,
-      breakEndTime: null,
-      roundStartCountdownEnd: null, // Clear the countdown
-      guesses: [],
-      submissions: [] // Clear for next round display (allSubmissions already accumulated in endRound)
-    });
+      // Use cloud function to set timing so non-host describers can start rounds
+      await cloudFunctions.setRoundTiming(gameId, Date.now(), newRound, gameState.currentPlayingTeam);
+    } catch (err) {
+      console.error('Start next round error:', err);
+      alert('Failed to start next round: ' + err.message);
+    }
   };
 
   const skipTurn = async () => {
     if (!gameState || gameState.currentDescriber !== playerId) return;
 
-    const isTeamMode = gameState.settings.teamMode;
+    try {
+      const isTeamMode = gameState.settings.teamMode;
 
-    if (isTeamMode) {
-      // In team mode, skip to next describer in the same team
-      const currentTeam = gameState.currentPlayingTeam;
-      const teamPlayers = gameState.players.filter(p => p.team === currentTeam);
-      const teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
+      if (isTeamMode) {
+        // In team mode, skip to next describer in the same team
+        const currentTeam = gameState.currentPlayingTeam;
+        const teamPlayers = gameState.players.filter(p => p.team === currentTeam);
+        const teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
 
-      // Move to next describer in the team
-      teamDescriberIndex[currentTeam] = (teamDescriberIndex[currentTeam] + 1) % teamPlayers.length;
-      const nextDescriber = teamPlayers[teamDescriberIndex[currentTeam]]?.id;
+        // Move to next describer in the team
+        teamDescriberIndex[currentTeam] = (teamDescriberIndex[currentTeam] + 1) % teamPlayers.length;
+        const nextDescriber = teamPlayers[teamDescriberIndex[currentTeam]]?.id;
 
-      await updateGame({
-        currentDescriber: nextDescriber,
-        teamDescriberIndex,
-        breakEndTime: Date.now() + 10000
-      });
-    } else {
-      // FFA mode - original logic
-      const currentIndex = gameState.players.findIndex(p => p.id === playerId);
-      const nextIndex = (currentIndex + 1) % gameState.players.length;
-      const nextDescriber = gameState.players[nextIndex].id;
+        // Use cloud function so non-host describers can skip
+        await cloudFunctions.skipTurn(gameId, nextDescriber, teamDescriberIndex);
+      } else {
+        // FFA mode - original logic
+        const currentIndex = gameState.players.findIndex(p => p.id === playerId);
+        const nextIndex = (currentIndex + 1) % gameState.players.length;
+        const nextDescriber = gameState.players[nextIndex].id;
 
-      await updateGame({
-        currentDescriber: nextDescriber,
-        breakEndTime: Date.now() + 10000
-      });
+        // Use cloud function so non-host describers can skip
+        await cloudFunctions.skipTurn(gameId, nextDescriber);
+      }
+    } catch (err) {
+      console.error('Skip turn error:', err);
+      alert('Failed to skip turn: ' + err.message);
     }
   };
 
@@ -3470,35 +3526,12 @@ function App() {
     isLeavingGame.current = true;
 
     // Remove player from the game if we have game state
-    if (gameState && playerId) {
-      // Set flag to prevent the Firebase listener from
-      // showing "removed by host" alert when we remove ourselves
-      isLeavingGame.current = true;
-
+    if (gameState && gameId) {
       try {
-        const updatedPlayers = gameState.players.filter(p => p.id !== playerId);
-
-        // If this was the host and there are other players, assign new host
-        let newHostId = gameState.host;
-        if (gameState.host === playerId && updatedPlayers.length > 0) {
-          newHostId = updatedPlayers[0].id;
-        }
-
-        // If this was the current describer, assign next describer
-        let newDescriber = gameState.currentDescriber;
-        if (gameState.currentDescriber === playerId && updatedPlayers.length > 0) {
-          const currentIndex = gameState.players.findIndex(p => p.id === playerId);
-          const nextIndex = currentIndex % updatedPlayers.length;
-          newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
-        }
-
-        await updateGame({
-          players: updatedPlayers,
-          host: newHostId,
-          currentDescriber: newDescriber
-        });
+        // Use cloud function to leave - handles host transfer automatically
+        await cloudFunctions.leaveGame(gameId);
       } catch (err) {
-        console.error('Error removing player from game:', err);
+        console.error('Error leaving game:', err);
       }
     }
 
@@ -3508,35 +3541,14 @@ function App() {
   };
 
   const logoutPlayer = async () => {
-    if (!gameState || !playerId) return;
+    if (!gameState || !gameId) return;
 
     // Mark that we're leaving voluntarily to prevent "removed by host" alert
     isLeavingGame.current = true;
 
     try {
-      // Remove player from the game
-      const updatedPlayers = gameState.players.filter(p => p.id !== playerId);
-
-      // If this was the host and there are other players, assign new host
-      let newHostId = gameState.host;
-      if (gameState.host === playerId && updatedPlayers.length > 0) {
-        newHostId = updatedPlayers[0].id;
-      }
-
-      // If this was the current describer, assign next describer
-      let newDescriber = gameState.currentDescriber;
-      if (gameState.currentDescriber === playerId && updatedPlayers.length > 0) {
-        const currentIndex = gameState.players.findIndex(p => p.id === playerId);
-        const nextIndex = currentIndex % updatedPlayers.length;
-        newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
-      }
-
-      // Update the game state
-      await updateGame({
-        players: updatedPlayers,
-        host: newHostId,
-        currentDescriber: newDescriber
-      });
+      // Use cloud function to leave - handles host transfer automatically
+      await cloudFunctions.leaveGame(gameId);
 
       // Reset local state (but keep playerId as it's tied to Firebase Auth)
       setPlayerName('');
@@ -3554,57 +3566,39 @@ function App() {
   const restartGame = async (newSettings) => {
     if (!gameState || !isHost) return;
 
-    // Check if there are at least 2 connected players
-    const connectedPlayers = gameState.players.filter(p => isPlayerConnected(p));
-    if (connectedPlayers.length < 2) {
-      alert('Cannot restart game! You need at least 2 connected players to play. Please wait for more players to join.');
-      return;
-    }
-
     try {
-      // Reset all player scores
-      const resetPlayers = gameState.players.map(p => ({ ...p, score: 0 }));
-
-      // Select new words for the first round (16 words initially, can grow to 32)
-      const wordPool = getWordsForDifficulty(newSettings.difficulty, 300);
-      const shuffled = [...wordPool].sort(() => Math.random() - 0.5);
-      const words = shuffled.slice(0, 16);
-
-      // For team mode, set up the first describer from team 1
-      let firstDescriber = connectedPlayers[0]?.id;
-      let currentPlayingTeam = null;
-      let teamDescriberIndex = { 1: 0, 2: 0 };
-
-      if (newSettings.teamMode) {
-        const team1Players = resetPlayers.filter(p => p.team === 1);
-        if (team1Players.length > 0) {
-          firstDescriber = team1Players[0].id;
-          currentPlayingTeam = 1;
-        }
-      }
-
-      // Set up countdown before game starts (5 seconds)
-      await updateGame({
-        players: resetPlayers,
-        settings: newSettings,
-        status: 'playing',
-        currentRound: 1,
-        currentDescriber: firstDescriber,
-        currentPlayingTeam,
-        teamDescriberIndex,
-        words,
-        roundStartTime: null, // Don't start timer yet
-        roundEndTime: null,
-        breakEndTime: null,
-        restartCountdownEnd: Date.now() + 5000, // 5 second countdown
-        guesses: [],
-        submissions: [],
-        allSubmissions: [], // Reset all submissions for new game
-        isLastRoundBreak: false
+      // Reset all player scores - keep team assignments
+      const now = Date.now();
+      const playersObject = {};
+      gameState.players.forEach(p => {
+        const { id, ...playerData } = p;
+        playersObject[id] = { ...playerData, score: 0, lastSeen: now };
       });
 
-      console.log('Game restart countdown started');
-      setScreen('game');
+      // Return to lobby state - host will click "Start Game" when ready
+      await updateGame({
+        players: playersObject,
+        settings: newSettings,
+        status: 'waiting', // Back to lobby
+        currentRound: 0,
+        currentDescriber: null,
+        currentPlayingTeam: null,
+        teamDescriberIndex: { 1: 0, 2: 0 },
+        roundStartTime: null,
+        roundEndTime: null,
+        breakEndTime: null,
+        restartCountdownEnd: null,
+        round: null,
+        guesses: [],
+        submissions: [],
+        allSubmissions: [],
+        isLastRoundBreak: false,
+        roundWords: null,
+        lastBonusAtWordCount: null
+      });
+
+      console.log('Game returned to lobby');
+      setScreen('lobby');
     } catch (err) {
       console.error('Restart game error:', err);
       alert('Failed to restart game: ' + err.message);
@@ -3618,26 +3612,13 @@ function App() {
   };
 
   const kickPlayer = async (playerIdToKick) => {
-    if (!gameState || !isHost) return;
+    if (!gameState || !isHost || !gameId) return;
 
     if (!window.confirm('Are you sure you want to kick this player?')) return;
 
     try {
-      const updatedPlayers = gameState.players.filter(p => p.id !== playerIdToKick);
-
-      // If the kicked player was the current describer, move to next player
-      let newDescriber = gameState.currentDescriber;
-      if (gameState.currentDescriber === playerIdToKick && updatedPlayers.length > 0) {
-        const currentIndex = gameState.players.findIndex(p => p.id === playerIdToKick);
-        const nextIndex = currentIndex % updatedPlayers.length;
-        newDescriber = updatedPlayers[nextIndex]?.id || updatedPlayers[0]?.id;
-      }
-
-      await updateGame({
-        players: updatedPlayers,
-        currentDescriber: newDescriber
-      });
-
+      // Use cloud function - handles describer transfer automatically
+      await cloudFunctions.kickPlayer(gameId, playerIdToKick);
       console.log('Player kicked successfully');
     } catch (err) {
       console.error('Kick player error:', err);
@@ -3667,37 +3648,15 @@ function App() {
   };
 
   const switchTeam = async (targetPlayerId) => {
-    if (!gameState || !gameState.settings.teamMode) return;
-
-    // Allow in lobby OR during break periods (not mid-round)
-    const isInLobby = gameState.status === 'waiting';
-    const isDuringBreak = gameState.breakEndTime && !gameState.roundStartTime;
-    const isBeforeFirstRound = gameState.status === 'playing' && !gameState.roundStartTime;
-
-    if (!isInLobby && !isDuringBreak && !isBeforeFirstRound) {
-      alert('Cannot switch teams during an active round. Wait for the break period.');
-      return;
-    }
-
-    // Cannot switch the current describer
-    if (targetPlayerId === gameState.currentDescriber) {
-      alert('Cannot switch the current describer\'s team.');
-      return;
-    }
-
-    const targetPlayer = gameState.players.find(p => p.id === targetPlayerId);
-    if (!targetPlayer) return;
-
-    const newTeam = targetPlayer.team === 1 ? 2 : 1;
-    const updatedPlayers = gameState.players.map(p =>
-      p.id === targetPlayerId ? { ...p, team: newTeam } : p
-    );
+    if (!gameState || !gameState.settings.teamMode || !gameId) return;
 
     try {
-      await updateGame({ players: updatedPlayers });
+      await cloudFunctions.switchTeam(gameId, targetPlayerId);
     } catch (err) {
       console.error('Switch team error:', err);
-      alert('Failed to switch team: ' + err.message);
+      // Show user-friendly error message
+      const message = err.message || 'Failed to switch team';
+      alert(message);
     }
   };
 
@@ -3707,9 +3666,8 @@ function App() {
     if (!window.confirm('Are you sure you want to transfer host to this player?')) return;
 
     try {
-      await updateGame({
-        host: newHostId
-      });
+      // Use cloud function since updateGame blocks writing to 'host'
+      await cloudFunctions.transferHost(gameId, newHostId);
       console.log('Host transferred successfully');
     } catch (err) {
       console.error('Transfer host error:', err);
@@ -3746,17 +3704,21 @@ function App() {
   // Handle transition from last round break to finished state
   useEffect(() => {
     if (gameState?.isLastRoundBreak && breakTimeRemaining === 0 && isHost) {
+      // Just transition status - don't update players object as it would overwrite
+      // the fresh lastSeen values that heartbeats have been writing directly to Firebase
       updateGame({ status: 'finished', isLastRoundBreak: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
 
-  // Handle restart countdown completion - start the actual game
+  // Handle restart countdown completion - transition to round start countdown
+  // (V2: The describer will then trigger word generation via startNextRound)
   useEffect(() => {
     if (gameState?.restartCountdownEnd && restartCountdownRemaining === 0 && isHost && !gameState.roundStartTime) {
+      // Clear restart countdown and set up round start countdown for describer
       updateGame({
-        roundStartTime: Date.now(),
-        restartCountdownEnd: null
+        restartCountdownEnd: null,
+        roundStartCountdownEnd: Date.now() + 3000 // 3 second countdown for describer
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3765,13 +3727,13 @@ function App() {
   // Handle round start countdown completion - describer triggers the round start
   useEffect(() => {
     if (gameState?.roundStartCountdownEnd && startCountdownRemaining === 0 && isDescriber && !gameState.roundStartTime) {
-      // Check if this is the initial round start (roundEndTime is null = never ended a round before)
-      // vs subsequent round (after break, roundEndTime has a value)
-      if (gameState.roundEndTime === null) {
-        // Initial game start - words already set by startGame, just start the timer
+      // V2: Check if words were already generated (initial start after startGame sets round.wordCount)
+      // vs need to generate words (restart or subsequent round)
+      if (gameState.round?.wordCount) {
+        // Initial game start - words already generated by startGame, just start the timer
         startInitialRound();
       } else {
-        // Subsequent round - need to generate new words
+        // Restart or subsequent round - need to generate new words via cloud function
         startNextRound();
       }
     }
@@ -3841,6 +3803,8 @@ function App() {
       switchTeam={switchTeam}
       bonusWordsNotification={bonusWordsNotification}
       isPlayerConnected={isPlayerConnected}
+      activeWords={activeWords}
+      activeWordCount={activeWordCount}
     />;
   }
 

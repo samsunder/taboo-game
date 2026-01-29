@@ -1,9 +1,26 @@
 {
   "rules": {
-    "$key": {
-      ".read": "auth != null && $key.beginsWith('game:')",
-      ".write": "auth != null && $key.beginsWith('game:')",
-      ".validate": "newData.isString() && newData.val().length <= 50000"
+    "gamesV2": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": false,
+        "players": {
+          ".read": "auth != null",
+          ".indexOn": ["lastSeen"],
+          "$playerId": {
+            ".read": "auth != null",
+            ".write": false,
+            "lastSeen": {
+              ".write": "auth != null && auth.uid == $playerId",
+              ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+            }
+          }
+        }
+      }
+    },
+    "gamesV2Words": {
+      ".read": false,
+      ".write": false
     }
   }
 }

@@ -3,6 +3,7 @@ import { getDatabase, ref, set, get, onValue, remove } from "firebase/database";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getAnalytics } from "firebase/analytics";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Game expiry in days
 const GAME_EXPIRY_DAYS = 3;
@@ -25,6 +26,7 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 const analytics = getAnalytics(app);
+const functions = getFunctions(app);
 
 // Initialize App Check with reCAPTCHA v3
 // This protects your Firebase resources from abuse
@@ -194,6 +196,157 @@ export const firebaseStorage = {
       console.error('Cleanup error:', err);
       return { deleted: 0, error: err.message };
     }
+  }
+};
+
+// V2 Cloud Functions API (secure, server-side word generation)
+export const cloudFunctions = {
+  // Create a new game using V2 cloud function
+  async createGame(hostName, hostEmoji, settings = {}) {
+    await waitForAuth();
+    const createGameV2 = httpsCallable(functions, 'createGameV2');
+    const result = await createGameV2({ hostName, hostEmoji, settings });
+    return result.data;
+  },
+
+  // Join an existing game
+  async joinGame(gameId, playerName, playerEmoji) {
+    await waitForAuth();
+    const joinGameV2 = httpsCallable(functions, 'joinGameV2');
+    const result = await joinGameV2({ gameId, playerName, playerEmoji });
+    return result.data;
+  },
+
+  // Get game state (words hidden for guessers)
+  async getGame(gameId) {
+    await waitForAuth();
+    const getGameV2 = httpsCallable(functions, 'getGameV2');
+    const result = await getGameV2({ gameId });
+    return result.data;
+  },
+
+  // Start a round (host only, generates words server-side)
+  async startRound(gameId, describerId = null) {
+    await waitForAuth();
+    const startRoundV2 = httpsCallable(functions, 'startRoundV2');
+    const result = await startRoundV2({ gameId, describerId });
+    return result.data;
+  },
+
+  // Submit a guess
+  async submitGuess(gameId, guess) {
+    await waitForAuth();
+    const submitGuessV2 = httpsCallable(functions, 'submitGuessV2');
+    const result = await submitGuessV2({ gameId, guess });
+    return result.data;
+  },
+
+  // Test function
+  async ping() {
+    const pingFn = httpsCallable(functions, 'ping');
+    const result = await pingFn({});
+    return result.data;
+  },
+
+  // End current round - copies words to public path for break screen display
+  async endRound(gameId, options = {}) {
+    await waitForAuth();
+    const endRoundV2 = httpsCallable(functions, 'endRoundV2');
+    const result = await endRoundV2({
+      gameId,
+      nextDescriberId: options.nextDescriberId,
+      isLastRound: options.isLastRound || false,
+      breakDuration: options.breakDuration,
+      nextPlayingTeam: options.nextPlayingTeam,
+      teamDescriberIndex: options.teamDescriberIndex,
+      allSubmissions: options.allSubmissions
+    });
+    return result.data;
+  },
+
+  // Update game state (host only)
+  async updateGameState(gameId, updates) {
+    await waitForAuth();
+    const updateGameStateV2 = httpsCallable(functions, 'updateGameStateV2');
+    const result = await updateGameStateV2({ gameId, updates });
+    return result.data;
+  },
+
+  // Leave game
+  async leaveGame(gameId) {
+    await waitForAuth();
+    const leaveGameV2 = httpsCallable(functions, 'leaveGameV2');
+    const result = await leaveGameV2({ gameId });
+    return result.data;
+  },
+
+  // Kick player (host only)
+  async kickPlayer(gameId, targetPlayerId) {
+    await waitForAuth();
+    const kickPlayerV2 = httpsCallable(functions, 'kickPlayerV2');
+    const result = await kickPlayerV2({ gameId, targetPlayerId });
+    return result.data;
+  },
+
+  // Switch team (player switches themselves, or host switches any player)
+  async switchTeam(gameId, targetPlayerId) {
+    await waitForAuth();
+    const switchTeamV2 = httpsCallable(functions, 'switchTeamV2');
+    const result = await switchTeamV2({ gameId, targetPlayerId });
+    return result.data;
+  },
+
+  // Transfer host
+  async transferHost(gameId, newHostId) {
+    await waitForAuth();
+    const transferHostV2 = httpsCallable(functions, 'transferHostV2');
+    const result = await transferHostV2({ gameId, newHostId });
+    return result.data;
+  },
+
+  // Skip turn (describer only)
+  async skipTurn(gameId, nextDescriberId, teamDescriberIndex = null) {
+    await waitForAuth();
+    const skipTurnV2 = httpsCallable(functions, 'skipTurnV2');
+    const result = await skipTurnV2({ gameId, nextDescriberId, teamDescriberIndex });
+    return result.data;
+  },
+
+  // Initiate countdown (describer only)
+  async initiateCountdown(gameId, countdownSeconds = 3) {
+    await waitForAuth();
+    const initiateCountdownV2 = httpsCallable(functions, 'initiateCountdownV2');
+    const result = await initiateCountdownV2({ gameId, countdownSeconds });
+    return result.data;
+  },
+
+  // Set round timing (describer only)
+  async setRoundTiming(gameId, roundStartTime, currentRound, currentPlayingTeam) {
+    await waitForAuth();
+    const setRoundTimingV2 = httpsCallable(functions, 'setRoundTimingV2');
+    const result = await setRoundTimingV2({ gameId, roundStartTime, currentRound, currentPlayingTeam });
+    return result.data;
+  },
+
+  // Update player presence (direct write allowed by rules)
+  async updatePresence(gameId, playerId) {
+    const presenceRef = ref(database, `gamesV2/${gameId}/players/${playerId}/lastSeen`);
+    await set(presenceRef, Date.now());
+  },
+
+  // Subscribe to V2 game state for real-time updates
+  // Returns unsubscribe function
+  subscribeToGame(gameId, callback) {
+    const gameRef = ref(database, `gamesV2/${gameId}`);
+    return onValue(gameRef, (snapshot) => {
+      if (snapshot.exists()) {
+        callback(snapshot.val());
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error('[V2] Subscription error:', error);
+    });
   }
 };
 
