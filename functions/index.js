@@ -1103,3 +1103,50 @@ exports.warmupScheduledV2 = onSchedule("every 5 minutes", async (event) => {
 exports.warmupV2 = onCall(async (request) => {
   return { success: true, timestamp: Date.now() };
 });
+
+/**
+ * Scheduled cleanup - runs daily to delete old/orphaned games
+ * Deletes games older than 3 days to prevent database bloat
+ */
+exports.cleanupOldGamesV2 = onSchedule("every 24 hours", async () => {
+  const GAME_EXPIRY_DAYS = 3;
+  const expiryMs = GAME_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  console.log("Starting scheduled cleanup at", new Date().toISOString());
+
+  try {
+    // Clean up gamesV2 (main game data)
+    const gamesRef = db.ref("gamesV2");
+    const gamesSnapshot = await gamesRef.once("value");
+    let deletedGames = 0;
+
+    if (gamesSnapshot.exists()) {
+      const games = gamesSnapshot.val();
+      const deletePromises = [];
+
+      for (const [gameId, game] of Object.entries(games)) {
+        const createdAt = game?.createdAt || 0;
+        const isExpired = (now - createdAt) > expiryMs;
+
+        // Also delete games with no players (orphaned)
+        const hasPlayers = game?.players && Object.keys(game.players).length > 0;
+
+        if (isExpired || !hasPlayers) {
+          console.log(`Deleting game ${gameId}: expired=${isExpired}, hasPlayers=${hasPlayers}`);
+          deletePromises.push(db.ref(`gamesV2/${gameId}`).remove());
+          deletePromises.push(db.ref(`gamesV2Words/${gameId}`).remove());
+          deletedGames++;
+        }
+      }
+
+      await Promise.all(deletePromises);
+    }
+
+    console.log(`Cleanup complete: deleted ${deletedGames} games`);
+    return null;
+  } catch (error) {
+    console.error("Cleanup error:", error);
+    return null;
+  }
+});
