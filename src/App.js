@@ -3158,7 +3158,7 @@ function App() {
         teamMode: settings.teamMode || false
       });
 
-      console.log('[V2] Game created:', result);
+      console.log('[V2] Game created:', result.gameId);
       const newGameId = result.gameId;
 
       // Set local state - real-time subscription will sync the rest
@@ -3195,8 +3195,8 @@ function App() {
 
     try {
       console.log('[V2] Joining game via cloud function:', gameId);
-      const result = await cloudFunctions.joinGame(gameId, playerName, playerEmoji);
-      console.log('[V2] Join result:', result);
+      await cloudFunctions.joinGame(gameId, playerName, playerEmoji);
+      console.log('[V2] Joined game successfully');
 
       // Update URL
       setTimeout(() => {
@@ -3251,7 +3251,7 @@ function App() {
       }
 
       const result = await cloudFunctions.startRound(gameId, firstDescriber);
-      console.log('[V2] Start round result:', result);
+      console.log('[V2] Start round result: round', result.round, 'wordCount:', result.roundData?.wordCount);
 
       // V2 SECURITY: Words are only returned if caller is the describer
       if (result.roundData.words) {
@@ -3336,9 +3336,9 @@ function App() {
     }
 
     try {
-      console.log('[V2] Submitting guess via cloud function:', guessInput.trim());
+      console.log('[V2] Submitting guess via cloud function');
       const result = await cloudFunctions.submitGuess(gameId, guessInput.trim());
-      console.log('[V2] Guess result:', result);
+      console.log('[V2] Guess result: correct:', result.correct, 'points:', result.points);
 
       // Cloud function now updates submissions array in database
       // Real-time subscription will update local state automatically
@@ -3452,7 +3452,7 @@ function App() {
       // The current describer was set in endRound
       const describerId = gameState.currentDescriber;
       const result = await cloudFunctions.startRound(gameId, describerId);
-      console.log('[V2] Start next round result:', result);
+      console.log('[V2] Start next round result: round', result.round, 'wordCount:', result.roundData?.wordCount);
 
       // V2 SECURITY: Words are only returned if caller is the describer
       // Store words locally - NEVER write to database
