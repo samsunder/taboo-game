@@ -2959,7 +2959,12 @@ function App() {
           // Check if current player was kicked (but not if they left voluntarily)
           const playerStillInGame = playersArray.some(p => p.id === playerId);
 
-          if (!playerStillInGame && playerId && !isLeavingGame.current) {
+          if (playerStillInGame) {
+            // Player is in the game - safe to clear the leaving flag
+            // This ensures we only clear it AFTER confirming we're in the game data
+            isLeavingGame.current = false;
+          } else if (playerId && !isLeavingGame.current) {
+            // Player not in game and didn't leave voluntarily - they were kicked
             console.log('Player was kicked from the game');
             alert('You have been removed from the game by the host.');
             setPlayerName('');
