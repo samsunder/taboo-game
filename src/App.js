@@ -3368,23 +3368,29 @@ function App() {
       const team2Players = gameState.players.filter(p => p.team === 2);
       const currentTeam = gameState.currentPlayingTeam;
 
-      if (currentTeam === 1) {
+      // Guard against empty teams
+      if (team1Players.length === 0 || team2Players.length === 0) {
+        console.error('One or both teams are empty, cannot end round properly');
+        // Fallback: pick any available player as next describer
+        nextDescriber = gameState.players[0]?.id;
+        isLastRound = gameState.currentRound >= totalRounds;
+      } else if (currentTeam === 1) {
         // Team 1 just finished, switch to Team 2
         nextPlayingTeam = 2;
-        // Move to next describer in team 1 for their next turn
+        // Move to next describer in team 1 for their next turn (safe modulo)
         teamDescriberIndex[1] = (teamDescriberIndex[1] + 1) % team1Players.length;
         // Get the next describer from team 2
-        const team2DescriberIdx = teamDescriberIndex[2];
+        const team2DescriberIdx = teamDescriberIndex[2] || 0;
         nextDescriber = team2Players[team2DescriberIdx % team2Players.length]?.id || team2Players[0]?.id;
         // Not last round yet (team 2 needs to play)
         isLastRound = false;
       } else {
         // Team 2 just finished, this completes one full round
         nextPlayingTeam = 1;
-        // Move to next describer in team 2 for their next turn
+        // Move to next describer in team 2 for their next turn (safe modulo)
         teamDescriberIndex[2] = (teamDescriberIndex[2] + 1) % team2Players.length;
         // Get the next describer from team 1
-        const team1DescriberIdx = teamDescriberIndex[1];
+        const team1DescriberIdx = teamDescriberIndex[1] || 0;
         nextDescriber = team1Players[team1DescriberIdx % team1Players.length]?.id || team1Players[0]?.id;
         // Check if this was the last round
         isLastRound = gameState.currentRound >= totalRounds;
@@ -3392,8 +3398,17 @@ function App() {
     } else {
       // FFA mode - original logic
       isLastRound = gameState.currentRound >= totalRounds;
-      const nextDescriberIndex = (gameState.players.findIndex(p => p.id === gameState.currentDescriber) + 1) % gameState.players.length;
-      nextDescriber = gameState.players[nextDescriberIndex].id;
+      // Guard against empty players array and missing describer
+      if (gameState.players.length === 0) {
+        console.error('No players remaining');
+        return;
+      }
+      const currentDescriberIndex = gameState.players.findIndex(p => p.id === gameState.currentDescriber);
+      // If current describer not found (left the game), default to first player
+      const nextDescriberIndex = currentDescriberIndex === -1
+        ? 0
+        : (currentDescriberIndex + 1) % gameState.players.length;
+      nextDescriber = gameState.players[nextDescriberIndex]?.id || gameState.players[0]?.id;
     }
 
     // Accumulate this round's submissions into allSubmissions

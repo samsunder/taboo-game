@@ -411,6 +411,11 @@ exports.submitGuessV2 = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Guess is required");
   }
 
+  // Prevent excessively long guesses
+  if (guess.length > 100) {
+    throw new HttpsError("invalid-argument", "Guess is too long");
+  }
+
   const gameRef = db.ref(`gamesV2/${gameId}`);
   const snapshot = await gameRef.once("value");
 
@@ -497,13 +502,11 @@ exports.submitGuessV2 = onCall(async (request) => {
     points: pointsAwarded
   };
 
-  // Add guess to round
-  const guesses = game.round.guesses || [];
-  guesses.push(guessRecord);
+  // Add guess to round (use spread to avoid mutation race conditions)
+  const guesses = [...(game.round.guesses || []), guessRecord];
 
-  // Also add to submissions array for UI display (includes all guesses)
-  const submissions = game.submissions || [];
-  submissions.push({
+  // Also add to submissions array for UI display (use spread to avoid mutation race conditions)
+  const submissions = [...(game.submissions || []), {
     word: normalizedGuess,
     playerId: playerId,
     playerName: playerName,
@@ -511,7 +514,7 @@ exports.submitGuessV2 = onCall(async (request) => {
     isDuplicate: alreadyGuessedWord,
     points: pointsAwarded,
     timestamp: now
-  });
+  }];
 
   // Update player score if correct
   if (matchedWord) {
@@ -594,6 +597,11 @@ exports.endRoundV2 = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Game ID is required");
   }
 
+  // Validate allSubmissions size to prevent storage abuse
+  if (allSubmissions && Array.isArray(allSubmissions) && allSubmissions.length > 10000) {
+    throw new HttpsError("invalid-argument", "Submissions array too large");
+  }
+
   const gameRef = db.ref(`gamesV2/${gameId}`);
   const snapshot = await gameRef.once("value");
 
@@ -654,8 +662,12 @@ exports.endRoundV2 = onCall(async (request) => {
     if (nextPlayingTeam !== undefined) {
       updates.currentPlayingTeam = nextPlayingTeam;
     }
-    if (teamDescriberIndex !== undefined) {
-      updates.teamDescriberIndex = teamDescriberIndex;
+    if (teamDescriberIndex !== undefined && typeof teamDescriberIndex === 'object') {
+      // Normalize indices to prevent negative or invalid values
+      updates.teamDescriberIndex = {
+        1: Math.max(0, parseInt(teamDescriberIndex[1]) || 0),
+        2: Math.max(0, parseInt(teamDescriberIndex[2]) || 0)
+      };
     }
     if (allSubmissions !== undefined) {
       updates.allSubmissions = allSubmissions;
