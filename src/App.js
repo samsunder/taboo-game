@@ -1547,7 +1547,12 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
 }
 
 function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected, activeWords, activeWordCount }) {
-  if (!gameState || gameState.status === 'finished') {
+  // Show results when game is finished OR when last round break timer is done (optimistic UI)
+  // This prevents delay when host's tab is inactive (browser throttles timers)
+  const showResults = !gameState || gameState.status === 'finished' ||
+    (gameState.isLastRoundBreak && breakTimeRemaining <= 0);
+
+  if (showResults) {
     return <ResultsScreen
       gameState={gameState}
       playerId={playerId}
