@@ -1454,7 +1454,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                           <UserX className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       )}
-                      {gameState.settings.teamMode && (player.id === playerId || isHost) && player.id !== gameState.currentDescriber && (
+                      {gameState.settings.teamMode && gameState.status !== 'finished' && (player.id === playerId || isHost) && player.id !== gameState.currentDescriber && (
                         <button
                           onClick={(e) => { e.stopPropagation(); switchTeam(player.id); }}
                           className={`p-1 rounded transition-colors ${player.team === 1 ? 'hover:bg-rose-500/30' : 'hover:bg-cyan-500/30'}`}
