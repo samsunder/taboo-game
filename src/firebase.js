@@ -276,6 +276,14 @@ export const cloudFunctions = {
     return result.data;
   },
 
+  // Finish game - transitions to finished state (host or describer)
+  async finishGame(gameId) {
+    await waitForAuth();
+    const finishGameV2 = httpsCallable(functions, 'finishGameV2');
+    const result = await finishGameV2({ gameId });
+    return result.data;
+  },
+
   // Leave game
   async leaveGame(gameId) {
     await waitForAuth();

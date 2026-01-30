@@ -284,9 +284,10 @@ exports.joinGameV2 = onCall(async (request) => {
   // Allow new players to join even if game is in progress (they can join mid-game)
   // Also allow joining finished games (for restart purposes)
 
-  // Assign team (alternate between teams for balance)
-  const playerCount = Object.keys(game.players || {}).length;
-  const team = (playerCount % 2) + 1;
+  // Assign team based on actual team sizes for balance
+  const team1Count = Object.values(game.players || {}).filter(p => p.team === 1).length;
+  const team2Count = Object.values(game.players || {}).filter(p => p.team === 2).length;
+  const team = team1Count <= team2Count ? 1 : 2;
 
   const now = Date.now();
   const playerData = {
@@ -623,11 +624,18 @@ exports.endRoundV2 = onCall(async (request) => {
   const isHost = game.host === playerId;
   const isDescriber = game.round?.describerId === playerId || game.currentDescriber === playerId;
 
-  if (!isHost && !isDescriber) {
+  // Allow any player to "rescue" the round if both host and describer are offline
+  const now = Date.now();
+  const OFFLINE_THRESHOLD = 65000; // 65 seconds, same as client
+  const hostPlayer = game.players?.[game.host];
+  const describerPlayer = game.players?.[game.currentDescriber];
+  const hostOffline = !hostPlayer?.lastSeen || (now - hostPlayer.lastSeen) > OFFLINE_THRESHOLD;
+  const describerOffline = !describerPlayer?.lastSeen || (now - describerPlayer.lastSeen) > OFFLINE_THRESHOLD;
+  const canRescueRound = hostOffline && describerOffline;
+
+  if (!isHost && !isDescriber && !canRescueRound) {
     throw new HttpsError("permission-denied", "Only host or describer can end round");
   }
-
-  const now = Date.now();
 
   // Fetch words from private path to copy to public for break screen
   const wordsSnapshot = await db.ref(`gamesV2Words/${gameId}/words`).once("value");
@@ -1092,6 +1100,66 @@ exports.setRoundTimingV2 = onCall(async (request) => {
   }
 
   await gameRef.update(updates);
+
+  return { success: true };
+});
+
+/**
+ * Finish game - transitions from last round break to finished state
+ * Allows both host and describer to trigger (prevents delay if host's tab is backgrounded)
+ */
+exports.finishGameV2 = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const { gameId } = request.data;
+  const playerId = request.auth.uid;
+
+  if (!gameId) {
+    throw new HttpsError("invalid-argument", "Game ID is required");
+  }
+
+  const gameRef = db.ref(`gamesV2/${gameId}`);
+  const snapshot = await gameRef.once("value");
+
+  if (!snapshot.exists()) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = snapshot.val();
+
+  // Only allow host or describer to finish the game
+  const isHost = game.host === playerId;
+  const isDescriber = game.currentDescriber === playerId;
+
+  // Allow any player to "rescue" if both host and describer are offline
+  const now = Date.now();
+  const OFFLINE_THRESHOLD = 65000; // 65 seconds, same as client
+  const hostPlayer = game.players?.[game.host];
+  const describerPlayer = game.players?.[game.currentDescriber];
+  const hostOffline = !hostPlayer?.lastSeen || (now - hostPlayer.lastSeen) > OFFLINE_THRESHOLD;
+  const describerOffline = !describerPlayer?.lastSeen || (now - describerPlayer.lastSeen) > OFFLINE_THRESHOLD;
+  const canRescueFinish = hostOffline && describerOffline;
+
+  if (!isHost && !isDescriber && !canRescueFinish) {
+    throw new HttpsError("permission-denied", "Only host or describer can finish the game");
+  }
+
+  // Validate game is in the right state (last round break)
+  if (!game.isLastRoundBreak) {
+    throw new HttpsError("failed-precondition", "Game must be in last round break to finish");
+  }
+
+  // Guard against double-finishing
+  if (game.status === 'finished') {
+    return { success: true, alreadyFinished: true };
+  }
+
+  await gameRef.update({
+    status: 'finished',
+    isLastRoundBreak: false
+  });
 
   return { success: true };
 });

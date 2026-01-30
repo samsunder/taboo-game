@@ -1763,6 +1763,39 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             </div>
           )}
 
+          {/* Warning: Empty team or all offline during break */}
+          {(() => {
+            if (!isTeamMode || gameState.isLastRoundBreak) return null;
+
+            const team1Connected = team1Players.filter(p => isPlayerConnected(p));
+            const team2Connected = team2Players.filter(p => isPlayerConnected(p));
+            const team1Empty = team1Players.length === 0;
+            const team2Empty = team2Players.length === 0;
+            const team1AllOffline = !team1Empty && team1Connected.length === 0;
+            const team2AllOffline = !team2Empty && team2Connected.length === 0;
+
+            if (!team1Empty && !team2Empty && !team1AllOffline && !team2AllOffline) return null;
+
+            const affectedTeam = (team1Empty || team1AllOffline) ? 'Team 1' : 'Team 2';
+            const isOfflineIssue = team1AllOffline || team2AllOffline;
+
+            return (
+              <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl p-4 flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-amber-400 shrink-0" />
+                <div>
+                  <p className="text-amber-300 font-semibold">
+                    {affectedTeam} has no {isOfflineIssue ? 'connected ' : ''}players!
+                  </p>
+                  <p className="text-amber-200/70 text-sm">
+                    {isOfflineIssue
+                      ? 'Wait for them to reconnect, or players can switch teams using the menu.'
+                      : 'Players can switch teams using the menu to continue the game.'}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Next Round Card - Primary Action at Top (only show if not last round) */}
           {!gameState.isLastRoundBreak ? (
             <div className="bg-gradient-to-br from-violet-500/10 to-purple-600/10 backdrop-blur-md rounded-2xl p-5 border border-violet-500/30">
@@ -3381,7 +3414,9 @@ function App() {
     let isLastRound;
     let nextDescriber;
     let nextPlayingTeam = gameState.currentPlayingTeam;
-    let teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
+    let teamDescriberIndex = gameState.teamDescriberIndex
+      ? { ...gameState.teamDescriberIndex }
+      : { 1: 0, 2: 0 };
 
     if (isTeamMode) {
       const team1Players = gameState.players.filter(p => p.team === 1);
@@ -3533,7 +3568,9 @@ function App() {
         // In team mode, skip to next describer in the same team
         const currentTeam = gameState.currentPlayingTeam;
         const teamPlayers = gameState.players.filter(p => p.team === currentTeam);
-        const teamDescriberIndex = { ...gameState.teamDescriberIndex } || { 1: 0, 2: 0 };
+        const teamDescriberIndex = gameState.teamDescriberIndex
+          ? { ...gameState.teamDescriberIndex }
+          : { 1: 0, 2: 0 };
 
         // Move to next describer in the team
         teamDescriberIndex[currentTeam] = (teamDescriberIndex[currentTeam] + 1) % teamPlayers.length;
@@ -3731,21 +3768,37 @@ function App() {
 
   useEffect(() => {
     // Allow both host and describer to end round - prevents game getting stuck if host disconnects mid-round
-    if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && (isHost || isDescriber)) {
+    // Also allow any player to "rescue" the round if both host and describer are offline
+    const hostPlayer = gameState?.players?.find(p => p.id === gameState?.host);
+    const describerPlayer = gameState?.players?.find(p => p.id === gameState?.currentDescriber);
+    const hostOffline = hostPlayer && !isPlayerConnected(hostPlayer);
+    const describerOffline = describerPlayer && !isPlayerConnected(describerPlayer);
+    const canRescueRound = hostOffline && describerOffline;
+
+    if (gameState?.status === 'playing' && gameState.roundStartTime && timeRemaining === 0 && (isHost || isDescriber || canRescueRound)) {
       endRound();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost, isDescriber]);
+  }, [timeRemaining, gameState?.status, gameState?.roundStartTime, isHost, isDescriber, gameState?.players, gameState?.host, gameState?.currentDescriber, currentTime]);
 
   // Handle transition from last round break to finished state
+  // Allow both host and describer to trigger - prevents delay if host's tab is backgrounded
+  // Also allow any player to "rescue" if both host and describer are offline
   useEffect(() => {
-    if (gameState?.isLastRoundBreak && breakTimeRemaining === 0 && isHost) {
-      // Just transition status - don't update players object as it would overwrite
-      // the fresh lastSeen values that heartbeats have been writing directly to Firebase
-      updateGame({ status: 'finished', isLastRoundBreak: false });
+    const hostPlayer = gameState?.players?.find(p => p.id === gameState?.host);
+    const describerPlayer = gameState?.players?.find(p => p.id === gameState?.currentDescriber);
+    const hostOffline = hostPlayer && !isPlayerConnected(hostPlayer);
+    const describerOffline = describerPlayer && !isPlayerConnected(describerPlayer);
+    const canRescueFinish = hostOffline && describerOffline;
+
+    if (gameState?.isLastRoundBreak && breakTimeRemaining === 0 && (isHost || isDescriber || canRescueFinish)) {
+      // Use dedicated cloud function that allows both host and describer (or any player if both offline)
+      cloudFunctions.finishGame(gameId).catch(err => {
+        console.error('Finish game error:', err);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost]);
+  }, [breakTimeRemaining, gameState?.isLastRoundBreak, isHost, isDescriber, gameState?.players, gameState?.host, gameState?.currentDescriber, currentTime]);
 
   // Handle restart countdown completion - transition to round start countdown
   // (V2: The describer will then trigger word generation via startNextRound)
