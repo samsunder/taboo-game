@@ -90,13 +90,22 @@ exports.createGameV2 = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Host name is required");
   }
 
-  const emoji = hostEmoji || '😀';
+  // Validate name length (matches client-side limit)
+  if (hostName.trim().length > 20) {
+    throw new HttpsError("invalid-argument", "Name must be 20 characters or less");
+  }
 
-  // Default settings
-  const totalRounds = settings?.totalRounds || 3;
+  // Validate emoji length (prevents abuse via devtools)
+  const emoji = (hostEmoji && typeof hostEmoji === 'string' && hostEmoji.length <= 10) ? hostEmoji : '😀';
+
+  // Default settings with bounds validation (matches client-side limits)
+  const VALID_DIFFICULTIES = ['easy', 'normal', 'hard', 'mixed'];
+  const totalRounds = Math.min(10, Math.max(1, settings?.totalRounds || 3));
+  const roundTime = Math.min(180, Math.max(30, settings?.roundTime || 60));
+  const difficulty = VALID_DIFFICULTIES.includes(settings?.difficulty) ? settings.difficulty : 'normal';
   const gameSettings = {
-    difficulty: settings?.difficulty || "normal",
-    roundTime: settings?.roundTime || 60,
+    difficulty: difficulty,
+    roundTime: roundTime,
     totalRounds: totalRounds,
     rounds: totalRounds,  // Alias for client compatibility
     bonusEnabled: settings?.bonusEnabled !== false,
@@ -258,7 +267,13 @@ exports.joinGameV2 = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Player name is required");
   }
 
-  const emoji = playerEmoji || '😀';
+  // Validate name length (matches client-side limit)
+  if (playerName.trim().length > 20) {
+    throw new HttpsError("invalid-argument", "Name must be 20 characters or less");
+  }
+
+  // Validate emoji length (prevents abuse via devtools)
+  const emoji = (playerEmoji && typeof playerEmoji === 'string' && playerEmoji.length <= 10) ? playerEmoji : '😀';
 
   const gameRef = db.ref(`gamesV2/${gameId}`);
   const snapshot = await gameRef.once("value");
@@ -283,6 +298,13 @@ exports.joinGameV2 = onCall(async (request) => {
 
   // Allow new players to join even if game is in progress (they can join mid-game)
   // Also allow joining finished games (for restart purposes)
+
+  // Check max players (12 for both FFA and team mode)
+  const MAX_PLAYERS = 12;
+  const currentPlayerCount = Object.keys(game.players || {}).length;
+  if (currentPlayerCount >= MAX_PLAYERS) {
+    throw new HttpsError("failed-precondition", "Game is full (max 12 players)");
+  }
 
   // Assign team based on actual team sizes for balance
   const team1Count = Object.values(game.players || {}).filter(p => p.team === 1).length;
