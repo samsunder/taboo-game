@@ -3191,8 +3191,9 @@ function App() {
   };
 
   const joinGame = async () => {
-    // Reset leaving flag - starting fresh game session
-    isLeavingGame.current = false;
+    // Set leaving flag to prevent false "kicked" alert during join process
+    // (subscription might fire before player data is fully synced)
+    isLeavingGame.current = true;
 
     if (!gameId || !playerName) {
       alert('Please enter your name and game code');
@@ -3222,6 +3223,12 @@ function App() {
 
       // Start in lobby - real-time subscription will update state and switch screens as needed
       setScreen('lobby');
+
+      // Reset leaving flag after subscription has time to stabilize
+      // This allows kick detection to work again once player is confirmed in game
+      setTimeout(() => {
+        isLeavingGame.current = false;
+      }, 3000);
     } catch (err) {
       console.error('Join game error:', err);
       if (err.code === 'not-found') {
