@@ -2447,8 +2447,9 @@ function ResultsScreen({ gameState, playerId, isHost, leaveGame, restartGame, lo
 
   if (!gameState) return null;
 
-  // Use a longer threshold for results screen (5 minutes) since background tabs throttle heartbeats
-  const RESULTS_DISCONNECT_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+  // Use a longer threshold for results screen since background tabs throttle heartbeats
+  // 2 minutes matches the host auto-claim threshold for consistency
+  const RESULTS_DISCONNECT_THRESHOLD = 2 * 60 * 1000; // 2 minutes
   const isPlayerConnectedForResults = (player) => {
     if (!player || !player.lastSeen) return false;
     return (currentTime - player.lastSeen) < RESULTS_DISCONNECT_THRESHOLD;
@@ -3640,11 +3641,12 @@ function App() {
 
     try {
       // Reset all player scores - keep team assignments
-      const now = Date.now();
+      // IMPORTANT: Don't reset lastSeen for all players - this would make disconnected players appear online
+      // Connected players will update their lastSeen via heartbeat naturally
       const playersObject = {};
       gameState.players.forEach(p => {
         const { id, ...playerData } = p;
-        playersObject[id] = { ...playerData, score: 0, lastSeen: now };
+        playersObject[id] = { ...playerData, score: 0 }; // Keep existing lastSeen
       });
 
       // Return to lobby state - host will click "Start Game" when ready
