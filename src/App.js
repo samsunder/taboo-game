@@ -1839,7 +1839,7 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                   {isHost && availableDescribers.length > 0 && gameState.players.length >= 2 && (
                     <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-3">
                       <span className="text-xs text-slate-400 block mb-2">Change describer:</span>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                         {availableDescribers.map(p => (
                           <button
                             key={p.id}
