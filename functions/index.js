@@ -612,6 +612,12 @@ exports.endRoundV2 = onCall(async (request) => {
 
   const game = snapshot.val();
 
+  // Guard against double-ending: if round is already null, it was already ended
+  // This prevents race condition where host and describer both call endRound at timer=0
+  if (!game.round) {
+    return { success: true, alreadyEnded: true };
+  }
+
   // Only host or current describer can end round
   // Check both round.describerId AND currentDescriber (in case one isn't set)
   const isHost = game.host === playerId;
