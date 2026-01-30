@@ -2769,6 +2769,7 @@ function App() {
   // Words are NOT stored in database, only returned from cloud function to describer
   const [secureWords, setSecureWords] = useState(null);
   const isLeavingGame = useRef(false);
+  const isJoiningGame = useRef(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Compute bonus notification visibility from game state
@@ -2961,10 +2962,14 @@ function App() {
 
           console.log('[V2] Real-time update:', playersArray.length, 'players', playersArray.map(p => p.name), 'status:', v2Data.status);
 
-          // Check if current player was kicked (but not if they left voluntarily)
+          // Check if current player was kicked (but not if they left voluntarily or joining)
           const playerStillInGame = playersArray.some(p => p.id === playerId);
 
-          if (!playerStillInGame && playerId && !isLeavingGame.current) {
+          if (playerStillInGame && isJoiningGame.current) {
+            // Player confirmed in game after joining - safe to enable kick detection
+            isLeavingGame.current = false;
+            isJoiningGame.current = false;
+          } else if (!playerStillInGame && playerId && !isLeavingGame.current) {
             // Player not in game and didn't leave voluntarily - they were kicked
             console.log('Player was kicked from the game');
             alert('You have been removed from the game by the host.');
@@ -3145,8 +3150,9 @@ function App() {
   }, [gameState, gameId, playerId, screen, currentTime]);
 
   const createGame = async (settings) => {
-    // Reset leaving flag - starting fresh game session
-    isLeavingGame.current = false;
+    // Set flags to prevent false "kicked" alert during game creation
+    isLeavingGame.current = true;
+    isJoiningGame.current = true;
 
     // Wait for Firebase auth and use UID as player ID
     const user = firebaseStorage.getCurrentUser();
@@ -3191,9 +3197,10 @@ function App() {
   };
 
   const joinGame = async () => {
-    // Set leaving flag to prevent false "kicked" alert during join process
-    // (subscription might fire before player data is fully synced)
+    // Set flags to prevent false "kicked" alert during join process
+    // Flags are reset in subscription callback once player is confirmed in game
     isLeavingGame.current = true;
+    isJoiningGame.current = true;
 
     if (!gameId || !playerName) {
       alert('Please enter your name and game code');
@@ -3223,12 +3230,6 @@ function App() {
 
       // Start in lobby - real-time subscription will update state and switch screens as needed
       setScreen('lobby');
-
-      // Reset leaving flag after subscription has time to stabilize
-      // This allows kick detection to work again once player is confirmed in game
-      setTimeout(() => {
-        isLeavingGame.current = false;
-      }, 3000);
     } catch (err) {
       console.error('Join game error:', err);
       if (err.code === 'not-found') {
