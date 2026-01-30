@@ -1181,7 +1181,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
   );
 }
 
-function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam, isPlayerConnected }) {
+function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam, isPlayerConnected, kickPlayer, transferHost }) {
   if (!gameState) return null;
 
   const team1 = gameState.players.filter(p => p.team === 1);
@@ -1200,13 +1200,19 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
             <h2 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Game Lobby</h2>
             <p className="text-slate-300 mt-1">Waiting for players...</p>
           </div>
-          <button
-            onClick={leaveGame}
-            className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 px-4 py-2 rounded-xl transition-all active:scale-95"
-          >
-            <LogOut className="w-4 h-4" />
-            Leave
-          </button>
+          <GameMenu
+            gameState={gameState}
+            playerId={playerId}
+            isHost={isHost}
+            logoutPlayer={leaveGame}
+            copyGameLink={copyGameLink}
+            kickPlayer={kickPlayer}
+            promoteDescriber={() => {}}
+            transferHost={transferHost}
+            switchTeam={switchTeam}
+            availableDescribers={[]}
+            isPlayerConnected={isPlayerConnected}
+          />
         </div>
 
         <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
@@ -3866,6 +3872,8 @@ function App() {
       leaveGame={leaveGame}
       switchTeam={switchTeam}
       isPlayerConnected={isPlayerConnected}
+      kickPlayer={kickPlayer}
+      transferHost={transferHost}
     />;
   }
 
