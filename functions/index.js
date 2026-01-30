@@ -270,8 +270,9 @@ exports.joinGameV2 = onCall(async (request) => {
   const game = snapshot.val();
 
   // Check if player is already in the game (allow rejoin even if game started)
-  if (game.players && game.players[playerId]) {
-    // Already in game, just return success - allows rejoining
+  // Also verify player has valid data (name) - heartbeat can create ghost entries with only lastSeen
+  if (game.players && game.players[playerId] && game.players[playerId].name) {
+    // Already in game with valid data, just return success - allows rejoining
     return {
       success: true,
       gameId: gameId,
