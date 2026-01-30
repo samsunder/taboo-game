@@ -631,7 +631,9 @@ exports.endRoundV2 = onCall(async (request) => {
   const wordsArray = Array.isArray(words) ? words : Object.values(words || {});
 
   // Copy guesses to roundGuesses before clearing round (for break screen display)
-  const guessesArray = game.round?.guesses || [];
+  // Firebase may convert arrays to objects - handle both formats
+  const guessesRaw = game.round?.guesses || [];
+  const guessesArray = Array.isArray(guessesRaw) ? guessesRaw : Object.values(guessesRaw);
 
   if (isLastRound) {
     // Last round - show break screen for 20 seconds before going to Game Over
