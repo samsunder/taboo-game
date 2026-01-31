@@ -3009,8 +3009,10 @@ function App() {
             // Player confirmed in game after joining - safe to enable kick detection
             isLeavingGame.current = false;
             isJoiningGame.current = false;
-          } else if (!playerStillInGame && playerId && !isLeavingGame.current) {
+          } else if (!playerStillInGame && playerId && !isLeavingGame.current && !isJoiningGame.current) {
             // Player not in game and didn't leave voluntarily - they were kicked
+            // Set flag immediately to prevent multiple alerts from rapid Firebase updates
+            isLeavingGame.current = true;
             console.log('Player was kicked from the game');
             alert('You have been removed from the game by the host.');
             setPlayerName('');
