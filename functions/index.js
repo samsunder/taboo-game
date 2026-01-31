@@ -845,8 +845,29 @@ exports.kickPlayerV2 = onCall(async (request) => {
   // If kicked player was the current describer, transfer to another player
   if (game.currentDescriber === targetPlayerId) {
     const remainingPlayers = Object.keys(game.players || {}).filter(id => id !== targetPlayerId);
+
     if (remainingPlayers.length > 0) {
-      await gameRef.child("currentDescriber").set(remainingPlayers[0]);
+      // In team mode, only pick a new describer from the same team
+      if (game.settings?.teamMode && game.currentPlayingTeam) {
+        const kickedPlayerTeam = game.players[targetPlayerId]?.team;
+        const sameTeamPlayers = remainingPlayers.filter(id =>
+          game.players[id]?.team === kickedPlayerTeam
+        );
+
+        if (sameTeamPlayers.length > 0) {
+          // Pick first available player from the same team
+          await gameRef.child("currentDescriber").set(sameTeamPlayers[0]);
+        } else {
+          // No players left on this team - set to null so UI shows warning and waits
+          await gameRef.child("currentDescriber").set(null);
+        }
+      } else {
+        // FFA mode - pick any remaining player
+        await gameRef.child("currentDescriber").set(remainingPlayers[0]);
+      }
+    } else {
+      // No players remaining at all
+      await gameRef.child("currentDescriber").set(null);
     }
   }
 

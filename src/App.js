@@ -3432,12 +3432,21 @@ function App() {
       const team2Players = gameState.players.filter(p => p.team === 2);
       const currentTeam = gameState.currentPlayingTeam;
 
-      // Guard against empty teams
+      // Guard against empty teams - set describer to null so UI shows warning and waits
       if (team1Players.length === 0 || team2Players.length === 0) {
-        console.error('One or both teams are empty, cannot end round properly');
-        // Fallback: pick any available player as next describer
-        nextDescriber = gameState.players[0]?.id;
-        isLastRound = gameState.currentRound >= totalRounds;
+        console.warn('One or both teams are empty - game will wait for players');
+        // Determine which team should play next based on normal rotation
+        if (currentTeam === 1) {
+          nextPlayingTeam = 2;
+          isLastRound = false;
+        } else {
+          nextPlayingTeam = 1;
+          isLastRound = gameState.currentRound >= totalRounds;
+        }
+        // Set describer to null - UI will show "no players" warning and wait
+        // Only pick a describer if the target team has players
+        const targetTeamPlayers = nextPlayingTeam === 1 ? team1Players : team2Players;
+        nextDescriber = targetTeamPlayers.length > 0 ? targetTeamPlayers[0]?.id : null;
       } else if (currentTeam === 1) {
         // Team 1 just finished, switch to Team 2
         nextPlayingTeam = 2;
