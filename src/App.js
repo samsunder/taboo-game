@@ -1753,6 +1753,46 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             )}
           </div>
 
+          {/* Points Earned This Round - Highlighted Display */}
+          {(() => {
+            const roundGuesses = gameState.roundGuesses || gameState.round?.guesses || [];
+            const correctGuesses = roundGuesses.filter(g => g.correct);
+            const totalRoundPoints = correctGuesses.reduce((sum, g) => sum + (g.points || 1), 0);
+            const wordsGuessed = correctGuesses.length;
+
+            if (wordsGuessed === 0) {
+              return (
+                <div className="relative overflow-hidden bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-600/50">
+                  <div className="text-center">
+                    <p className="text-slate-400 text-lg">No words guessed this round</p>
+                    <p className="text-slate-500 text-sm mt-1">Better luck next time!</p>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/20 via-yellow-500/15 to-orange-500/20 backdrop-blur-md rounded-2xl p-6 border-2 border-amber-400/50 shadow-lg shadow-amber-500/20">
+                {/* Decorative sparkles */}
+                <div className="absolute top-2 left-4 text-2xl animate-pulse">✨</div>
+                <div className="absolute top-3 right-6 text-xl animate-pulse" style={{ animationDelay: '0.5s' }}>⭐</div>
+                <div className="absolute bottom-2 left-8 text-lg animate-pulse" style={{ animationDelay: '0.3s' }}>✨</div>
+
+                <div className="text-center relative z-10">
+                  <p className="text-amber-300/80 text-sm font-medium uppercase tracking-wider mb-1">Points Earned This Round</p>
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-5xl sm:text-6xl font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 bg-clip-text text-transparent drop-shadow-lg">
+                      +{totalRoundPoints}
+                    </span>
+                  </div>
+                  <p className="text-amber-200/70 text-sm mt-2">
+                    {wordsGuessed} {wordsGuessed === 1 ? 'word' : 'words'} guessed correctly
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Team Scores during break (team mode only) */}
           {isTeamMode && (
             <div className="grid grid-cols-2 gap-4">
@@ -3685,6 +3725,7 @@ function App() {
         allSubmissions: [],
         isLastRoundBreak: false,
         roundWords: null,
+        roundGuesses: null,
         lastBonusAtWordCount: null
       });
 
