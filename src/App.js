@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft, Pencil } from 'lucide-react';
+import { Timer, Users, Trophy, Play, Copy, Crown, Zap, Star, Settings, LogOut, SkipForward, Menu, UserX, X, Link, BookOpen, ChevronRight, ChevronDown, Mic, MicVocal, MessageCircle, Target, Clock, Sparkles, AlertCircle, Check, Send, ArrowRightLeft, Pencil, Shuffle } from 'lucide-react';
 import { firebaseStorage, cloudFunctions } from './firebase';
 import { DIFFICULTY_CONFIG } from './words';
 
@@ -1181,7 +1181,7 @@ function JoinScreen({ gameId, setGameId, playerName, setPlayerName, playerEmoji,
   );
 }
 
-function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam, isPlayerConnected, kickPlayer, transferHost }) {
+function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startGame, leaveGame, switchTeam, isPlayerConnected, kickPlayer, transferHost, randomizeTeams, setFirstDescriber }) {
   if (!gameState) return null;
 
   const team1 = gameState.players.filter(p => p.team === 1);
@@ -1241,8 +1241,20 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
         </div>
 
         {gameState.settings.teamMode ? (
-          <div className="grid grid-cols-2 gap-4">
-            <div className={`backdrop-blur-md rounded-2xl p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
+          <div className="space-y-4">
+            {isHost && gameState.players.length >= 2 && (
+              <div className="flex justify-center">
+                <button
+                  onClick={randomizeTeams}
+                  className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-4 py-2 rounded-xl transition-all active:scale-95"
+                >
+                  <Shuffle className="w-4 h-4 text-purple-400" />
+                  <span>Randomize Teams</span>
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`backdrop-blur-md rounded-2xl p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
                 <Users className="w-5 h-5" />
                 Team 1 ({team1.length}/{MAX_PLAYERS_PER_TEAM})
@@ -1253,17 +1265,29 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{player.emoji || '😀'}</span>
                       {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
+                      {player.id === gameState.firstDescriber && <Mic className="w-4 h-4 text-cyan-400" title="First describer" />}
                       <span>{player.name}</span>
                     </div>
-                    {(player.id === playerId || isHost) && (
-                      <button
-                        onClick={() => switchTeam(player.id)}
-                        className="p-1 hover:bg-rose-500/30 rounded transition-colors"
-                        title="Switch to Team 2"
-                      >
-                        <ArrowRightLeft className="w-4 h-4 text-rose-400" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {isHost && player.id !== gameState.firstDescriber && (
+                        <button
+                          onClick={() => setFirstDescriber(player.id)}
+                          className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                          title="Make first describer"
+                        >
+                          <MicVocal className="w-4 h-4 text-cyan-400" />
+                        </button>
+                      )}
+                      {(player.id === playerId || isHost) && (
+                        <button
+                          onClick={() => switchTeam(player.id)}
+                          className="p-1 hover:bg-rose-500/30 rounded transition-colors"
+                          title="Switch to Team 2"
+                        >
+                          <ArrowRightLeft className="w-4 h-4 text-rose-400" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {team1.length < 2 && (
@@ -1305,6 +1329,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
               </div>
             </div>
           </div>
+          </div>
         ) : (
           <div className="card-rich backdrop-blur-md rounded-2xl p-6 border border-slate-700">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
@@ -1313,10 +1338,22 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {gameState.players.map(player => (
-                <div key={player.id} className="bg-slate-700/50 px-4 py-2 rounded-lg flex items-center gap-2">
-                  <span className="text-lg">{player.emoji || '😀'}</span>
-                  {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                  {player.name}
+                <div key={player.id} className="bg-slate-700/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{player.emoji || '😀'}</span>
+                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
+                    {player.id === gameState.firstDescriber && <Mic className="w-4 h-4 text-cyan-400" title="First describer" />}
+                    <span>{player.name}</span>
+                  </div>
+                  {isHost && player.id !== gameState.firstDescriber && (
+                    <button
+                      onClick={() => setFirstDescriber(player.id)}
+                      className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                      title="Make first describer"
+                    >
+                      <MicVocal className="w-4 h-4 text-cyan-400" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1552,7 +1589,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
   );
 }
 
-function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected, activeWords, activeWordCount }) {
+function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTimeRemaining, restartCountdownRemaining, guessInput, setGuessInput, submitGuess, isHost, startNextRound, startCountdown, skipTurn, leaveGame, logoutPlayer, restartGame, copyGameLink, kickPlayer, promoteDescriber, transferHost, switchTeam, bonusWordsNotification, isPlayerConnected, activeWords, activeWordCount, startRoundFromPreRound, cancelPreRound }) {
   // Show results when game is finished OR when last round break timer is done (optimistic UI)
   // This prevents delay when host's tab is inactive (browser throttles timers)
   const showResults = !gameState || gameState.status === 'finished' ||
@@ -1584,6 +1621,91 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
             <span className="text-4xl font-bold text-cyan-400">...</span>
           </div>
           <h1 className="text-2xl font-bold text-white">Starting round...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  // Show pre-round screen - describer clicks "Start Round", others wait
+  if (gameState.status === 'pre-round') {
+    const preRoundDescriber = gameState.players.find(p => p.id === gameState.currentDescriber);
+    const isPreRoundDescriber = playerId === gameState.currentDescriber;
+    const isTeamModePreRound = gameState.settings?.teamMode;
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 flex items-center justify-center">
+        <div className="text-center space-y-8 max-w-md">
+          {/* Round indicator */}
+          <div className="bg-slate-800/50 backdrop-blur-md rounded-xl px-6 py-3 border border-slate-700 inline-block">
+            <span className="text-slate-400">Round</span>
+            <span className="text-2xl font-bold text-cyan-400 ml-2">{gameState.currentRound}</span>
+            <span className="text-slate-400 ml-1">/ {gameState.settings?.totalRounds || gameState.settings?.rounds}</span>
+          </div>
+
+          {isPreRoundDescriber ? (
+            <>
+              {/* Describer view */}
+              <div className="space-y-4">
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500/30 to-teal-600/30 border-4 border-cyan-500/50 flex items-center justify-center mx-auto">
+                  <Mic className="w-16 h-16 text-cyan-400" />
+                </div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
+                  You're the Describer!
+                </h1>
+                <p className="text-slate-400">
+                  When you're ready, click the button below to start the round.
+                  <br />
+                  <span className="text-sm">You'll have {gameState.settings?.roundTime || 60} seconds to describe words.</span>
+                </p>
+              </div>
+
+              <button
+                onClick={startRoundFromPreRound}
+                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-8 py-4 rounded-xl font-bold text-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-3 mx-auto"
+              >
+                <Play className="w-6 h-6" />
+                Start Round
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Guesser/spectator view */}
+              <div className="space-y-4">
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-slate-600/30 to-slate-700/30 border-4 border-slate-500/50 flex items-center justify-center mx-auto animate-pulse">
+                  <Clock className="w-16 h-16 text-slate-400" />
+                </div>
+                <h1 className="text-3xl font-bold text-white">
+                  Get Ready!
+                </h1>
+                <p className="text-slate-400 text-lg">
+                  Waiting for the describer to start...
+                </p>
+              </div>
+
+              {/* Describer info */}
+              <div className="bg-slate-800/50 backdrop-blur-md rounded-xl p-4 border border-slate-700">
+                <p className="text-slate-400 text-sm mb-1">Describer</p>
+                <p className="text-xl font-bold text-cyan-300">
+                  {preRoundDescriber?.emoji} {preRoundDescriber?.name}
+                </p>
+                {isTeamModePreRound && (
+                  <span className={`text-xs px-2 py-1 rounded mt-2 inline-block ${gameState.currentPlayingTeam === 1 ? 'bg-cyan-500/30 text-cyan-300' : 'bg-rose-500/30 text-rose-300'}`}>
+                    Team {gameState.currentPlayingTeam}
+                  </span>
+                )}
+              </div>
+
+              {/* Host can return to lobby if describer isn't ready */}
+              {isHost && (
+                <button
+                  onClick={cancelPreRound}
+                  className="mt-4 px-6 py-3 rounded-xl font-semibold text-sm transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
+                >
+                  Return to Lobby
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
     );
@@ -1885,19 +2007,24 @@ function GameScreen({ gameState, playerId, isDescriber, timeRemaining, breakTime
                         <Play className="w-5 h-5" />
                         {startCountdown !== null ? `Starting in ${startCountdown}...` : 'Start Round'}
                       </button>
-                      <button
-                        onClick={skipTurn}
-                        disabled={startCountdown !== null}
-                        className={`px-4 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-                          startCountdown !== null
-                            ? 'bg-slate-600 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 transform hover:scale-105 active:scale-95'
-                        }`}
-                        title="Skip your turn"
-                      >
-                        <SkipForward className="w-5 h-5" />
-                        <span className="hidden sm:inline">Skip</span>
-                      </button>
+                      {/* Show skip button on break screen (round 2+). On break after round 1, currentRound is still 1
+                         but we're about to start round 2 which has auto-assigned describer, so skip is allowed.
+                         Pre-round (round 1 start) is handled separately and has no skip button. */}
+                      {gameState.currentRound >= 1 && (
+                        <button
+                          onClick={skipTurn}
+                          disabled={startCountdown !== null}
+                          className={`px-4 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
+                            startCountdown !== null
+                              ? 'bg-slate-600 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 transform hover:scale-105 active:scale-95'
+                          }`}
+                          title="Skip your turn"
+                        >
+                          <SkipForward className="w-5 h-5" />
+                          <span className="hidden sm:inline">Skip</span>
+                        </button>
+                      )}
                     </div>
                   )}
                   {gameState.players.length < 2 && (
@@ -3066,7 +3193,7 @@ function App() {
           setGameState(newState);
 
           // Auto-switch screens based on game status
-          if ((newState.status === 'playing' || newState.status === 'finished') && screen === 'lobby') {
+          if ((newState.status === 'playing' || newState.status === 'pre-round' || newState.status === 'finished') && screen === 'lobby') {
             console.log('Game in progress or finished! Switching to game screen');
             setScreen('game');
           } else if (newState.status === 'waiting' && screen === 'game') {
@@ -3341,18 +3468,28 @@ function App() {
     if (!gameState) return;
 
     try {
-      console.log('[V2] Starting round via cloud function...');
+      console.log('[V2] Starting pre-round via cloud function...');
 
-      // Determine first describer
-      let firstDescriber = playerId; // Default to host
-      if (gameState.settings?.teamMode) {
-        const team1Players = gameState.players.filter(p => p.team === 1);
-        if (team1Players.length > 0) {
-          firstDescriber = team1Players[0].id;
-        }
-      }
+      // Start pre-round phase - describer will click "Start Round" to begin
+      const result = await cloudFunctions.startPreRound(gameId);
+      console.log('[V2] Pre-round started, describer:', result.currentDescriber);
 
-      const result = await cloudFunctions.startRound(gameId, firstDescriber);
+      setScreen('game');
+    } catch (err) {
+      console.error('Start game error:', err);
+      alert('Failed to start game: ' + err.message);
+    }
+  };
+
+  // Describer starts the round from pre-round screen
+  const startRoundFromPreRound = async () => {
+    if (!gameState || gameState.status !== 'pre-round') return;
+
+    try {
+      console.log('[V2] Describer starting round...');
+
+      // Call startRound to generate words - server also sets roundStartCountdownEnd
+      const result = await cloudFunctions.startRound(gameId, playerId);
       console.log('[V2] Start round result: round', result.round, 'wordCount:', result.roundData?.wordCount);
 
       // V2 SECURITY: Words are only returned if caller is the describer
@@ -3363,28 +3500,34 @@ function App() {
         }));
         setSecureWords(words);
         console.log('[V2] Stored secure words locally (describer only)');
-      } else {
-        setSecureWords(null);
-        console.log('[V2] No words returned (not the describer)');
       }
-
-      // Update game state via cloud function
-      await updateGame({
-        status: 'playing',
-        currentRound: result.round,
-        roundStartTime: null,
-        roundStartCountdownEnd: Date.now() + 3000,
-        roundEndTime: null,
-        breakEndTime: null,
-        currentDescriber: firstDescriber,
-        currentPlayingTeam: gameState.settings?.teamMode ? 1 : null,
-        teamDescriberIndex: { 1: 0, 2: 0 }
-      });
-
-      setScreen('game');
+      // Note: Server sets roundStartCountdownEnd when transitioning from pre-round
     } catch (err) {
-      console.error('Start game error:', err);
-      alert('Failed to start game: ' + err.message);
+      console.error('Start round error:', err);
+      alert('Failed to start round: ' + err.message);
+    }
+  };
+
+  // Host cancels pre-round and returns to lobby (if describer disconnects)
+  const cancelPreRound = async () => {
+    if (!gameState || !isHost || gameState.status !== 'pre-round') return;
+
+    try {
+      await updateGame({
+        status: 'waiting',
+        currentRound: 0,
+        currentDescriber: null,
+        currentPlayingTeam: null,
+        teamDescriberIndex: { 1: 0, 2: 0 },
+        roundStartTime: null,
+        roundStartCountdownEnd: null,
+        roundEndTime: null,
+        breakEndTime: null
+      });
+      console.log('Returned to lobby from pre-round');
+    } catch (err) {
+      console.error('Cancel pre-round error:', err);
+      alert('Failed to return to lobby: ' + err.message);
     }
   };
 
@@ -3630,6 +3773,12 @@ function App() {
           ? { ...gameState.teamDescriberIndex }
           : { 1: 0, 2: 0 };
 
+        // Guard: Can't skip if you're the only one on the team (would cause NaN from % 0)
+        if (teamPlayers.length <= 1) {
+          alert('Cannot skip - no other players on your team to take over');
+          return;
+        }
+
         // Move to next describer in the team
         teamDescriberIndex[currentTeam] = (teamDescriberIndex[currentTeam] + 1) % teamPlayers.length;
         const nextDescriber = teamPlayers[teamDescriberIndex[currentTeam]]?.id;
@@ -3706,6 +3855,20 @@ function App() {
         playersObject[id] = { ...playerData, score: 0 }; // Keep existing lastSeen
       });
 
+      // Determine first describer for the new game
+      // In team mode, must be a Team 1 player (prefer host if they're on Team 1)
+      let newFirstDescriber = playerId; // Default to host
+      if (newSettings.teamMode) {
+        const hostTeam = playersObject[playerId]?.team;
+        if (hostTeam !== 1) {
+          // Host is not on Team 1, find first Team 1 player
+          const team1Player = gameState.players.find(p => p.team === 1);
+          if (team1Player) {
+            newFirstDescriber = team1Player.id;
+          }
+        }
+      }
+
       // Return to lobby state - host will click "Start Game" when ready
       await updateGame({
         players: playersObject,
@@ -3719,6 +3882,7 @@ function App() {
         roundEndTime: null,
         breakEndTime: null,
         restartCountdownEnd: null,
+        roundStartCountdownEnd: null,
         round: null,
         guesses: [],
         submissions: [],
@@ -3726,7 +3890,8 @@ function App() {
         isLastRoundBreak: false,
         roundWords: null,
         roundGuesses: null,
-        lastBonusAtWordCount: null
+        lastBonusAtWordCount: null,
+        firstDescriber: newFirstDescriber
       });
 
       console.log('Game returned to lobby');
@@ -3788,6 +3953,30 @@ function App() {
       console.error('Switch team error:', err);
       // Show user-friendly error message
       const message = err.message || 'Failed to switch team';
+      alert(message);
+    }
+  };
+
+  const randomizeTeams = async () => {
+    if (!gameState || !gameState.settings.teamMode || !gameId || !isHost) return;
+
+    try {
+      await cloudFunctions.randomizeTeams(gameId);
+    } catch (err) {
+      console.error('Randomize teams error:', err);
+      const message = err.message || 'Failed to randomize teams';
+      alert(message);
+    }
+  };
+
+  const setFirstDescriber = async (describerId) => {
+    if (!gameState || !gameId || !isHost) return;
+
+    try {
+      await cloudFunctions.setFirstDescriber(gameId, describerId);
+    } catch (err) {
+      console.error('Set first describer error:', err);
+      const message = err.message || 'Failed to set first describer';
       alert(message);
     }
   };
@@ -3926,6 +4115,8 @@ function App() {
       isPlayerConnected={isPlayerConnected}
       kickPlayer={kickPlayer}
       transferHost={transferHost}
+      randomizeTeams={randomizeTeams}
+      setFirstDescriber={setFirstDescriber}
     />;
   }
 
@@ -3956,6 +4147,8 @@ function App() {
       isPlayerConnected={isPlayerConnected}
       activeWords={activeWords}
       activeWordCount={activeWordCount}
+      startRoundFromPreRound={startRoundFromPreRound}
+      cancelPreRound={cancelPreRound}
     />;
   }
 

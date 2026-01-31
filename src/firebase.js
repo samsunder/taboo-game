@@ -308,6 +308,30 @@ export const cloudFunctions = {
     return result.data;
   },
 
+  // Randomize teams (host only, team mode only)
+  async randomizeTeams(gameId) {
+    await waitForAuth();
+    const randomizeTeamsV2 = httpsCallable(functions, 'randomizeTeamsV2');
+    const result = await randomizeTeamsV2({ gameId });
+    return result.data;
+  },
+
+  // Set first describer (host only, lobby only)
+  async setFirstDescriber(gameId, describerId) {
+    await waitForAuth();
+    const setFirstDescriberV2 = httpsCallable(functions, 'setFirstDescriberV2');
+    const result = await setFirstDescriberV2({ gameId, describerId });
+    return result.data;
+  },
+
+  // Start pre-round phase (host only)
+  async startPreRound(gameId) {
+    await waitForAuth();
+    const startPreRoundV2 = httpsCallable(functions, 'startPreRoundV2');
+    const result = await startPreRoundV2({ gameId });
+    return result.data;
+  },
+
   // Transfer host
   async transferHost(gameId, newHostId) {
     await waitForAuth();

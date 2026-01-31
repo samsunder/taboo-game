@@ -136,6 +136,7 @@ exports.createGameV2 = onCall(async (request) => {
     status: "waiting",
     settings: gameSettings,
     currentRound: 0,
+    firstDescriber: hostId,  // Host is default first describer
     players: {
       [hostId]: {
         name: hostName.trim(),
@@ -324,6 +325,14 @@ exports.joinGameV2 = onCall(async (request) => {
   // Add player to game
   await gameRef.child(`players/${playerId}`).set(playerData);
 
+  // Auto-assign as firstDescriber if joining in lobby and no firstDescriber is set
+  // In team mode, only set if joining Team 1
+  if (game.status === "waiting" && !game.firstDescriber) {
+    if (!game.settings?.teamMode || team === 1) {
+      await gameRef.child("firstDescriber").set(playerId);
+    }
+  }
+
   // Auto-assign as describer if joining the playing team that had no players
   // This handles the case where a team was empty and game was waiting for someone to join
   if (game.settings?.teamMode && game.status === "playing" && team === game.currentPlayingTeam) {
@@ -341,6 +350,75 @@ exports.joinGameV2 = onCall(async (request) => {
     success: true,
     gameId: gameId,
     player: playerData
+  };
+});
+
+/**
+ * Start pre-round phase
+ * Host starts the pre-round where describer can click "Start Round"
+ * This does NOT generate words yet - that happens when describer starts the round
+ */
+exports.startPreRoundV2 = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const { gameId } = request.data;
+  const playerId = request.auth.uid;
+
+  if (!gameId) {
+    throw new HttpsError("invalid-argument", "Game ID is required");
+  }
+
+  const gameRef = db.ref(`gamesV2/${gameId}`);
+  const snapshot = await gameRef.once("value");
+
+  if (!snapshot.exists()) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = snapshot.val();
+
+  // Only host can start pre-round
+  if (game.host !== playerId) {
+    throw new HttpsError("permission-denied", "Only host can start the game");
+  }
+
+  // Only allow from waiting state
+  if (game.status !== "waiting") {
+    throw new HttpsError("failed-precondition", "Game has already started");
+  }
+
+  // Get first describer from game state (defaults to host if not set)
+  const firstDescriber = game.firstDescriber || game.host;
+
+  // Validate first describer is still in the game
+  if (!game.players || !game.players[firstDescriber]) {
+    throw new HttpsError("failed-precondition", "First describer is no longer in the game");
+  }
+
+  // In team mode, validate first describer is on Team 1
+  if (game.settings?.teamMode && game.players[firstDescriber].team !== 1) {
+    throw new HttpsError("failed-precondition", "First describer must be on Team 1");
+  }
+
+  // Update game to pre-round state
+  await gameRef.update({
+    status: "pre-round",
+    currentRound: 1,
+    currentDescriber: firstDescriber,
+    currentPlayingTeam: game.settings?.teamMode ? 1 : null,
+    teamDescriberIndex: { 1: 0, 2: 0 },
+    roundStartTime: null,
+    roundStartCountdownEnd: null,
+    roundEndTime: null,
+    breakEndTime: null
+  });
+
+  return {
+    success: true,
+    gameId: gameId,
+    currentDescriber: firstDescriber
   };
 });
 
@@ -369,21 +447,35 @@ exports.startRoundV2 = onCall(async (request) => {
 
   const game = snapshot.val();
 
-  // Allow host OR the designated describer to start rounds
-  const isHost = game.host === playerId;
-  const isDescriber = describerId && describerId === playerId;
-
-  if (!isHost && !isDescriber) {
-    throw new HttpsError("permission-denied", "Only host or describer can start rounds");
-  }
-
   // Check game state
   if (game.status === "finished") {
     throw new HttpsError("failed-precondition", "Game is already finished");
   }
 
-  // Validate describer is in the game
-  const actualDescriberId = describerId || playerId; // Default to host if not specified
+  // Block calling startRound directly from waiting - must use startPreRound first
+  if (game.status === "waiting") {
+    throw new HttpsError("failed-precondition", "Game has not started yet");
+  }
+
+  // During pre-round, only the current describer can start the round
+  if (game.status === "pre-round") {
+    if (game.currentDescriber !== playerId) {
+      throw new HttpsError("permission-denied", "Only the describer can start the round");
+    }
+  } else {
+    // For other states, allow host OR the designated describer to start rounds
+    const isHost = game.host === playerId;
+    const isDescriber = describerId && describerId === playerId;
+
+    if (!isHost && !isDescriber) {
+      throw new HttpsError("permission-denied", "Only host or describer can start rounds");
+    }
+  }
+
+  // Determine actual describer - use currentDescriber if in pre-round, otherwise use param or caller
+  const actualDescriberId = game.status === "pre-round"
+    ? game.currentDescriber
+    : (describerId || playerId);
   if (!game.players || !game.players[actualDescriberId]) {
     throw new HttpsError("invalid-argument", "Describer must be a player in the game");
   }
@@ -392,7 +484,11 @@ exports.startRoundV2 = onCall(async (request) => {
   const words = getWordsForDifficulty(game.settings.difficulty, 16);
 
   const now = Date.now();
-  const nextRound = (game.currentRound || 0) + 1;
+  // For pre-round, round is already set to 1 by startPreRound - don't increment
+  // For subsequent rounds, increment as normal
+  const nextRound = game.status === "pre-round"
+    ? game.currentRound  // Already set to 1
+    : (game.currentRound || 0) + 1;
 
   // Create PUBLIC round data (NO words - just metadata)
   const publicRoundData = {
@@ -406,15 +502,23 @@ exports.startRoundV2 = onCall(async (request) => {
   // Store words in PRIVATE path (only cloud functions can access)
   await db.ref(`gamesV2Words/${gameId}`).set({ words: words });
 
-  // Update PUBLIC game state (clients can subscribe to this)
-  await gameRef.update({
+  // Build the update object
+  const gameUpdate = {
     status: "playing",
     currentRound: nextRound,
     round: publicRoundData,
     bonusWordsAdded: false,  // Reset bonus words flag for new round
     bonusWordsNotificationEnd: null,
     lastBonusAtWordCount: 0  // Reset so bonus words can trigger again this round
-  });
+  };
+
+  // If starting from pre-round, also set the countdown (describer can't call updateGameState)
+  if (game.status === "pre-round") {
+    gameUpdate.roundStartCountdownEnd = now + 3000; // 3 second countdown
+  }
+
+  // Update PUBLIC game state (clients can subscribe to this)
+  await gameRef.update(gameUpdate);
 
   // Only return words if the caller IS the describer
   const callerIsDescriber = playerId === actualDescriberId;
@@ -699,10 +803,12 @@ exports.endRoundV2 = onCall(async (request) => {
     });
   } else {
     // Set up for break period
+    // If nextDescriberId is explicitly null (team has no players), keep it null
+    // Only fall back to host if nextDescriberId is undefined (not provided)
     const updates = {
       roundEndTime: now,
       breakEndTime: now + (breakDuration || 10000),
-      currentDescriber: nextDescriberId || game.host,
+      currentDescriber: nextDescriberId === null ? null : (nextDescriberId || game.host),
       roundStartTime: null,
       isLastRoundBreak: false,
       roundWords: wordsArray,  // Copy words to public path for break screen
@@ -837,6 +943,31 @@ exports.leaveGameV2 = onCall(async (request) => {
     }
   }
 
+  // If firstDescriber is leaving (in lobby), reset to host or first Team 1 player
+  if (game.firstDescriber === playerId && game.status === "waiting") {
+    if (remainingPlayers.length > 0) {
+      // In team mode, firstDescriber must be on Team 1
+      if (game.settings?.teamMode) {
+        const team1Players = remainingPlayers.filter(id => game.players[id]?.team === 1);
+        if (team1Players.length > 0) {
+          // Pick the new host if they're on Team 1, otherwise first Team 1 player
+          const newHost = game.host === playerId ? remainingPlayers[0] : game.host;
+          const newFirstDescriber = game.players[newHost]?.team === 1 ? newHost : team1Players[0];
+          await gameRef.child("firstDescriber").set(newFirstDescriber);
+        } else {
+          // No Team 1 players - will need to be set when someone joins/switches
+          await gameRef.child("firstDescriber").set(null);
+        }
+      } else {
+        // FFA mode - set to new host
+        const newHost = game.host === playerId ? remainingPlayers[0] : game.host;
+        await gameRef.child("firstDescriber").set(newHost);
+      }
+    } else {
+      await gameRef.child("firstDescriber").set(null);
+    }
+  }
+
   return { success: true };
 });
 
@@ -903,6 +1034,26 @@ exports.kickPlayerV2 = onCall(async (request) => {
     } else {
       // No players remaining at all
       await gameRef.child("currentDescriber").set(null);
+    }
+  }
+
+  // If kicked player was firstDescriber (in lobby), reset to host or first Team 1 player
+  if (game.firstDescriber === targetPlayerId && game.status === "waiting") {
+    const remainingPlayers = Object.keys(game.players || {}).filter(id => id !== targetPlayerId);
+    if (remainingPlayers.length > 0) {
+      if (game.settings?.teamMode) {
+        const team1Players = remainingPlayers.filter(id => game.players[id]?.team === 1);
+        if (team1Players.length > 0) {
+          const newFirstDescriber = game.players[game.host]?.team === 1 ? game.host : team1Players[0];
+          await gameRef.child("firstDescriber").set(newFirstDescriber);
+        } else {
+          await gameRef.child("firstDescriber").set(null);
+        }
+      } else {
+        await gameRef.child("firstDescriber").set(game.host);
+      }
+    } else {
+      await gameRef.child("firstDescriber").set(null);
     }
   }
 
@@ -977,6 +1128,26 @@ exports.switchTeamV2 = onCall(async (request) => {
 
   await gameRef.child(`players/${targetPlayerId}/team`).set(newTeam);
 
+  // If firstDescriber is switching away from Team 1 (in lobby), reset to another Team 1 player
+  if (game.firstDescriber === targetPlayerId && game.status === "waiting" && newTeam !== 1) {
+    const team1Players = Object.keys(game.players || {}).filter(id =>
+      id !== targetPlayerId && game.players[id]?.team === 1
+    );
+    if (team1Players.length > 0) {
+      // Prefer host if they're on Team 1, otherwise first Team 1 player
+      const newFirstDescriber = team1Players.includes(game.host) ? game.host : team1Players[0];
+      await gameRef.child("firstDescriber").set(newFirstDescriber);
+    } else {
+      // No Team 1 players left - set to null (will need to be set when someone switches)
+      await gameRef.child("firstDescriber").set(null);
+    }
+  }
+
+  // Auto-assign as firstDescriber if switching TO Team 1 and no firstDescriber is set
+  if (game.status === "waiting" && newTeam === 1 && !game.firstDescriber) {
+    await gameRef.child("firstDescriber").set(targetPlayerId);
+  }
+
   // Auto-assign as describer if switching to the playing team that had no players
   // This handles the case where a team was empty and game was waiting for someone to switch
   if (game.settings?.teamMode && game.status === "playing" && newTeam === game.currentPlayingTeam) {
@@ -991,6 +1162,140 @@ exports.switchTeamV2 = onCall(async (request) => {
   }
 
   return { success: true, targetPlayerId, newTeam };
+});
+
+/**
+ * Randomize teams (host only, team mode only)
+ * Shuffles all players randomly across both teams
+ */
+exports.randomizeTeamsV2 = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const { gameId } = request.data;
+  const playerId = request.auth.uid;
+
+  if (!gameId) {
+    throw new HttpsError("invalid-argument", "Game ID is required");
+  }
+
+  const gameRef = db.ref(`gamesV2/${gameId}`);
+  const snapshot = await gameRef.once("value");
+
+  if (!snapshot.exists()) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = snapshot.val();
+
+  // Only host can randomize teams
+  if (game.host !== playerId) {
+    throw new HttpsError("permission-denied", "Only host can randomize teams");
+  }
+
+  // Only available in team mode
+  if (!game.settings?.teamMode) {
+    throw new HttpsError("failed-precondition", "Randomize teams is only available in team mode");
+  }
+
+  // Only allow in lobby (waiting state)
+  if (game.status !== "waiting") {
+    throw new HttpsError("failed-precondition", "Can only randomize teams in lobby");
+  }
+
+  // Need at least 2 players to randomize
+  const playerIds = Object.keys(game.players || {});
+  if (playerIds.length < 2) {
+    throw new HttpsError("failed-precondition", "Need at least 2 players to randomize teams");
+  }
+
+  // Shuffle player IDs using Fisher-Yates algorithm
+  const shuffled = [...playerIds];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // Distribute evenly: first half to Team 1, second half to Team 2
+  const midpoint = Math.ceil(shuffled.length / 2);
+  const updates = {};
+
+  shuffled.forEach((id, index) => {
+    const team = index < midpoint ? 1 : 2;
+    updates[`players/${id}/team`] = team;
+  });
+
+  // Build new teams map
+  const newTeams = {};
+  shuffled.forEach((id, index) => {
+    newTeams[id] = index < midpoint ? 1 : 2;
+  });
+
+  // Reset firstDescriber to a Team 1 player (prefer host if on Team 1)
+  const team1Players = Object.keys(newTeams).filter(id => newTeams[id] === 1);
+  if (team1Players.length > 0) {
+    const newFirstDescriber = newTeams[game.host] === 1 ? game.host : team1Players[0];
+    updates.firstDescriber = newFirstDescriber;
+  }
+
+  await gameRef.update(updates);
+
+  return { success: true, teams: newTeams };
+});
+
+/**
+ * Set first describer for the game
+ * Only host can set first describer, and only in lobby (waiting state)
+ * In team mode, first describer must be on Team 1
+ */
+exports.setFirstDescriberV2 = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const { gameId, describerId } = request.data;
+  const playerId = request.auth.uid;
+
+  if (!gameId || !describerId) {
+    throw new HttpsError("invalid-argument", "Game ID and describer ID are required");
+  }
+
+  const gameRef = db.ref(`gamesV2/${gameId}`);
+  const snapshot = await gameRef.once("value");
+
+  if (!snapshot.exists()) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = snapshot.val();
+
+  // Only host can set first describer
+  if (game.host !== playerId) {
+    throw new HttpsError("permission-denied", "Only host can set first describer");
+  }
+
+  // Only allow in lobby (waiting state)
+  if (game.status !== "waiting") {
+    throw new HttpsError("failed-precondition", "Can only set first describer in lobby");
+  }
+
+  // Check that describer is in the game
+  if (!game.players || !game.players[describerId]) {
+    throw new HttpsError("invalid-argument", "Selected player is not in the game");
+  }
+
+  // In team mode, first describer must be on Team 1
+  if (game.settings?.teamMode) {
+    const describerTeam = game.players[describerId].team;
+    if (describerTeam !== 1) {
+      throw new HttpsError("failed-precondition", "First describer must be on Team 1 in team mode");
+    }
+  }
+
+  await gameRef.update({ firstDescriber: describerId });
+
+  return { success: true, firstDescriber: describerId };
 });
 
 /**
