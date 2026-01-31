@@ -324,6 +324,19 @@ exports.joinGameV2 = onCall(async (request) => {
   // Add player to game
   await gameRef.child(`players/${playerId}`).set(playerData);
 
+  // Auto-assign as describer if joining the playing team that had no players
+  // This handles the case where a team was empty and game was waiting for someone to join
+  if (game.settings?.teamMode && game.status === "playing" && team === game.currentPlayingTeam) {
+    // Check if currentDescriber is null or invalid (not on the playing team)
+    const currentDescriber = game.currentDescriber;
+    const describerTeam = currentDescriber ? game.players[currentDescriber]?.team : null;
+    const needsDescriber = !currentDescriber || describerTeam !== game.currentPlayingTeam;
+
+    if (needsDescriber) {
+      await gameRef.child("currentDescriber").set(playerId);
+    }
+  }
+
   return {
     success: true,
     gameId: gameId,
@@ -797,9 +810,31 @@ exports.leaveGameV2 = onCall(async (request) => {
     await gameRef.child("host").set(remainingPlayers[0]);
   }
 
-  // If current describer is leaving and there are other players, transfer describer
-  if (game.currentDescriber === playerId && remainingPlayers.length > 0) {
-    await gameRef.child("currentDescriber").set(remainingPlayers[0]);
+  // If current describer is leaving, handle describer transfer
+  if (game.currentDescriber === playerId) {
+    if (remainingPlayers.length > 0) {
+      // In team mode, only pick a new describer from the same team
+      if (game.settings?.teamMode && game.currentPlayingTeam) {
+        const leavingPlayerTeam = game.players[playerId]?.team;
+        const sameTeamPlayers = remainingPlayers.filter(id =>
+          game.players[id]?.team === leavingPlayerTeam
+        );
+
+        if (sameTeamPlayers.length > 0) {
+          // Pick first available player from the same team
+          await gameRef.child("currentDescriber").set(sameTeamPlayers[0]);
+        } else {
+          // No players left on this team - set to null so UI shows warning and waits
+          await gameRef.child("currentDescriber").set(null);
+        }
+      } else {
+        // FFA mode - pick any remaining player
+        await gameRef.child("currentDescriber").set(remainingPlayers[0]);
+      }
+    } else {
+      // No players remaining at all
+      await gameRef.child("currentDescriber").set(null);
+    }
   }
 
   return { success: true };
@@ -941,6 +976,19 @@ exports.switchTeamV2 = onCall(async (request) => {
   const newTeam = currentTeam === 1 ? 2 : 1;
 
   await gameRef.child(`players/${targetPlayerId}/team`).set(newTeam);
+
+  // Auto-assign as describer if switching to the playing team that had no players
+  // This handles the case where a team was empty and game was waiting for someone to switch
+  if (game.settings?.teamMode && game.status === "playing" && newTeam === game.currentPlayingTeam) {
+    // Check if currentDescriber is null or invalid (not on the playing team)
+    const currentDescriber = game.currentDescriber;
+    const describerTeam = currentDescriber ? game.players[currentDescriber]?.team : null;
+    const needsDescriber = !currentDescriber || describerTeam !== game.currentPlayingTeam;
+
+    if (needsDescriber) {
+      await gameRef.child("currentDescriber").set(targetPlayerId);
+    }
+  }
 
   return { success: true, targetPlayerId, newTeam };
 });
