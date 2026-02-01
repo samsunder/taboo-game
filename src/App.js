@@ -1246,36 +1246,36 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
               <div className="flex justify-center">
                 <button
                   onClick={randomizeTeams}
-                  className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 px-4 py-2 rounded-xl transition-all active:scale-95"
+                  className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-400/50 px-4 py-2 rounded-xl transition-all active:scale-95"
                 >
                   <Shuffle className="w-4 h-4 text-purple-400" />
                   <span>Randomize Teams</span>
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className={`backdrop-blur-md rounded-2xl p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-300">
-                <Users className="w-5 h-5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={`backdrop-blur-md rounded-2xl p-4 sm:p-6 border ${team1.length >= 2 ? 'bg-cyan-500/20 border-cyan-500/30' : 'bg-cyan-500/10 border-cyan-500/20'}`}>
+              <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2 text-cyan-300">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                 Team 1 ({team1.length}/{MAX_PLAYERS_PER_TEAM})
               </h3>
               <div className="space-y-2">
                 {team1.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{player.emoji || '😀'}</span>
-                      {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                      {player.id === gameState.firstDescriber && <Mic className="w-4 h-4 text-cyan-400" title="First describer" />}
-                      <span>{player.name}</span>
+                  <div key={player.id} className="bg-slate-800/50 px-3 sm:px-4 py-2 rounded-lg flex items-center justify-between gap-1 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <span className="text-base sm:text-lg flex-shrink-0">{player.emoji || '😀'}</span>
+                      {player.id === gameState.host && <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />}
+                      {player.id === gameState.firstDescriber && <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 flex-shrink-0" title="First describer" />}
+                      <span className="truncate text-sm sm:text-base">{player.name}</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                       {isHost && player.id !== gameState.firstDescriber && (
                         <button
                           onClick={() => setFirstDescriber(player.id)}
                           className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
                           title="Make first describer"
                         >
-                          <MicVocal className="w-4 h-4 text-cyan-400" />
+                          <MicVocal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
                         </button>
                       )}
                       {(player.id === playerId || isHost) && (
@@ -1284,7 +1284,7 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
                           className="p-1 hover:bg-rose-500/30 rounded transition-colors"
                           title="Switch to Team 2"
                         >
-                          <ArrowRightLeft className="w-4 h-4 text-rose-400" />
+                          <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
                         </button>
                       )}
                     </div>
@@ -1297,26 +1297,26 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
                 )}
               </div>
             </div>
-            <div className={`backdrop-blur-md rounded-2xl p-6 border ${team2.length >= 2 ? 'bg-rose-500/20 border-rose-500/30' : 'bg-rose-500/10 border-rose-500/20'}`}>
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-rose-300">
-                <Users className="w-5 h-5" />
+            <div className={`backdrop-blur-md rounded-2xl p-4 sm:p-6 border ${team2.length >= 2 ? 'bg-rose-500/20 border-rose-500/30' : 'bg-rose-500/10 border-rose-500/20'}`}>
+              <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2 text-rose-300">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                 Team 2 ({team2.length}/{MAX_PLAYERS_PER_TEAM})
               </h3>
               <div className="space-y-2">
                 {team2.map(player => (
-                  <div key={player.id} className="bg-slate-800/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{player.emoji || '😀'}</span>
-                      {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                      <span>{player.name}</span>
+                  <div key={player.id} className="bg-slate-800/50 px-3 sm:px-4 py-2 rounded-lg flex items-center justify-between gap-1 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <span className="text-base sm:text-lg flex-shrink-0">{player.emoji || '😀'}</span>
+                      {player.id === gameState.host && <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />}
+                      <span className="truncate text-sm sm:text-base">{player.name}</span>
                     </div>
                     {(player.id === playerId || isHost) && (
                       <button
                         onClick={() => switchTeam(player.id)}
-                        className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                        className="p-1 hover:bg-cyan-500/30 rounded transition-colors flex-shrink-0"
                         title="Switch to Team 1"
                       >
-                        <ArrowRightLeft className="w-4 h-4 text-cyan-400" />
+                        <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
                       </button>
                     )}
                   </div>
@@ -1336,22 +1336,22 @@ function LobbyScreen({ gameState, gameId, isHost, playerId, copyGameLink, startG
               <Users className="w-5 h-5" />
               Players ({gameState.players.length}/{MAX_PLAYERS_FFA})
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {gameState.players.map(player => (
-                <div key={player.id} className="bg-slate-700/50 px-4 py-2 rounded-lg flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{player.emoji || '😀'}</span>
-                    {player.id === gameState.host && <Crown className="w-4 h-4 text-amber-400" />}
-                    {player.id === gameState.firstDescriber && <Mic className="w-4 h-4 text-cyan-400" title="First describer" />}
-                    <span>{player.name}</span>
+                <div key={player.id} className="bg-slate-700/50 px-3 sm:px-4 py-2 rounded-lg flex items-center justify-between gap-1 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <span className="text-base sm:text-lg flex-shrink-0">{player.emoji || '😀'}</span>
+                    {player.id === gameState.host && <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />}
+                    {player.id === gameState.firstDescriber && <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 flex-shrink-0" title="First describer" />}
+                    <span className="truncate text-sm sm:text-base">{player.name}</span>
                   </div>
                   {isHost && player.id !== gameState.firstDescriber && (
                     <button
                       onClick={() => setFirstDescriber(player.id)}
-                      className="p-1 hover:bg-cyan-500/30 rounded transition-colors"
+                      className="p-1 hover:bg-cyan-500/30 rounded transition-colors flex-shrink-0"
                       title="Make first describer"
                     >
-                      <MicVocal className="w-4 h-4 text-cyan-400" />
+                      <MicVocal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
                     </button>
                   )}
                 </div>
@@ -1420,7 +1420,7 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 w-auto sm:w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 w-auto sm:w-80 bg-slate-800 border border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto custom-scrollbar">
           {/* Player Info Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border-b border-slate-600">
             <div className="flex items-center gap-2">
@@ -1447,7 +1447,13 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
 
             {showPlayers && (
               <div className="bg-slate-900/50 max-h-56 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                {gameState?.players?.map(player => (
+                {gameState?.players?.slice().sort((a, b) => {
+                  // In team mode, sort by team (Team 1 first, then Team 2)
+                  if (gameState.settings?.teamMode) {
+                    return (a.team || 1) - (b.team || 1);
+                  }
+                  return 0;
+                }).map(player => (
                   <div
                     key={player.id}
                     className="flex items-center justify-between px-3 py-2 hover:bg-slate-700/30 gap-2"
@@ -1461,12 +1467,12 @@ function GameMenu({ gameState, playerId, isHost, logoutPlayer, copyGameLink, kic
                           T{player.team}
                         </span>
                       )}
-                      <span className={`text-sm truncate ${!isPlayerConnected(player) ? 'text-slate-500' : ''}`}>
+                      <span className={`text-sm truncate min-w-[60px] ${!isPlayerConnected(player) ? 'text-slate-500' : ''}`}>
                         {player.name}{player.id === playerId && ' (You)'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <span className="text-xs text-amber-400 mr-1">{player.score}</span>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <span className="text-xs text-amber-400 mr-0.5">{player.score}</span>
                       {player.id === gameState.currentDescriber && (
                         <Mic className="w-3 h-3 text-cyan-400" title="Current describer" />
                       )}
